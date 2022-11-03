@@ -12,9 +12,30 @@ TODO: Guide users through getting your code up and running on their own system. 
 TODO: Describe and show how to build your code and run the tests. 
 
 # Contribute
-TODO: Explain how other users and developers can contribute to make your code better. 
 
-If you want to learn more about creating good readme files then refer the following [guidelines](https://docs.microsoft.com/en-us/azure/devops/repos/git/create-a-readme?view=azure-devops). You can also seek inspiration from the below readme files:
-- [ASP.NET Core](https://github.com/aspnet/Home)
-- [Visual Studio Code](https://github.com/Microsoft/vscode)
-- [Chakra Core](https://github.com/Microsoft/ChakraCore)
+Environment Variables
+
+ASPNETCORE_ENVIRONMENT
+SQLCONNSTR_DEFAULT
+SQLAZURECONNSTR_DEFAULT (Production)
+AZURE_KEY_VAULT_ID (Production)
+APP_URL
+
+The "api" project was created with the following dotnet CLI command:
+
+ ```dotnet new webapi --exclude-launch-settings --framework net6.0 --use-program-main```
+
+### EF Core Migrations
+You will need to add migrations whenever making schema changes to the database. To add a migration, run the following command
+within the "api" project:
+
+```dotnet ef migrations add NameOfNewMigration --project ../database -- ConnectionStrings:Default="Data Source=Dummy String"```
+
+Due to the way the EF Core CLI tool acquires the DbContext, you will need to pass a connection string to any command or the
+command will fail. Fortunately, the add migration command doesn't really need a database, so you can pass a bogus string.
+Other commands might fail without a valid connection string. See the [EF Core Tools](https://learn.microsoft.com/en-us/ef/core/cli/dotnet).
+
+TODO: Setup docker
+TODO: Setup https
+TODO: Setup debugging
+TODO: Setup ARM template, possibly with build pipeline
