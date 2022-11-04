@@ -9,17 +9,17 @@ The application contains three parts:
 3. ui
 
 The database part is a .NET 6.0 class library, relying on EF Core to communicate with the actual database,
-and the api part is a simple ASP.NET Core 6.0 app. The ASP.NET Core app references the database class library
+and the api part is a simple <span>ASP.</span>NET Core 6.0 app. The <span>ASP.</span>NET Core app references the database class library
 and builds into a single executable, comprising the API or "backend" portion of the application.
 
 The ui part is implemented as a static web site using Vue.js and Nuxt. In production, the UI is served by the
-ASP.NET Core app, leveraging ASP.NET Core's static file serving feature. This is accomplished simply by copying
-the Vue.js built static files to the "wwwrooot" folder in the ASP.NET Core app.
+<span>ASP.</span>NET Core app, leveraging <span>ASP.</span>NET Core's static file serving feature. This is accomplished simply by copying
+the Vue.js built static files to the "wwwrooot" folder in the <span>ASP.</span>NET Core app.
 
 Serving the UI and API on the same server makes it easy to use cookies for an authentication session and
 use a client side framework like Vue.
 
-The ASP.NET Core app was created with the following dotnet CLI command:
+The <span>ASP.</span>NET Core app was created with the following dotnet CLI command:
 
  ```dotnet new webapi --exclude-launch-settings --framework net6.0 --use-program-main```
 
@@ -34,7 +34,7 @@ The app should automatically redirect you to HTTPS. If your browser warns you th
 either "proceed as unsafe" or add the development certificate to your certificate store to avoid the warning
 again.
 
-Note that the file name of the development certificate must match the name of the ASP.NET Core app assembly,
+Note that the file name of the development certificate must match the name of the <span>ASP.</span>NET Core app assembly,
 i.e. WebAuthnTest.Api.pfx. This development certificate must not be used in production! It was created using
 the `dotnet dev-certs https` CLI command.
 
@@ -70,15 +70,15 @@ To run any dotnet CLI command, you will need version 6.0.x of the dotnet SDK ins
 
 TODO: Setup Vue app
 TODO: Setup https wih Vue
-TODO: Setup asp.net core debugging w/docker
+TODO: Setup <span>ASP.</span>NET core debugging w/docker
 TODO: Setup ARM template, possibly with build pipeline
 
 
 The following documentation was helpful to setup this project:
 
-[Docker for ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/docker/building-net-docker-images?view=aspnetcore-6.0)
+[Docker for <span>ASP.</span>NET Core](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/docker/building-net-docker-images?view=aspnetcore-6.0)
 
-[Host ASP.NET Core with HTTPS in Docker](https://github.com/dotnet/dotnet-docker/blob/main/samples/host-aspnetcore-https.md)
+[Host <span>ASP.</span>NET Core with HTTPS in Docker](https://github.com/dotnet/dotnet-docker/blob/main/samples/host-aspnetcore-https.md)
 
 [Configuring SQL Server for Docker](https://learn.microsoft.com/en-us/sql/linux/sql-server-linux-docker-container-configure)
 
