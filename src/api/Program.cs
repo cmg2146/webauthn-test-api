@@ -43,8 +43,8 @@ public class Program
             .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
             .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
             {
-                options.LoginPath = "login";
-                options.LogoutPath = "logout";
+                options.LoginPath = new PathString("/login");
+                options.LogoutPath = new PathString("/logout");
                 options.ReturnUrlParameter = "returnUrl";
                 options.SlidingExpiration = true;
                 options.Cookie.IsEssential = true;
@@ -95,6 +95,8 @@ public class Program
 
         app.UseHttpsRedirection();
         app.UseHsts();
+
+        app.UseSession();
 
         //This hooks in our Vue.js front end. Note: Don't add a wwwroot folder
         //to the API project because the Vue.js app is built into this folder.

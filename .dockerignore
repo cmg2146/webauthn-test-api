@@ -1,0 +1,12 @@
+*Dockerfile*
+*.dockerignore*
+*docker-compose*
+.git
+*.gitignore
+*.gitattributes
+*.config
+*.bin
+*.obj
+README.md
+WebAuthnTest.Api.pfx
+wait-for-it.sh

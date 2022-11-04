@@ -28,16 +28,28 @@ In development, the solution can be run using Docker by executing the following 
 
 ```docker-compose up```
 
+...and then opening your browser to http://localhost:10000.
+
+The app should automatically redirect you to HTTPS. If your browser warns you the site is unsafe, you can
+either "proceed as unsafe" or add the development certificate to your certificate store to avoid the warning
+again.
+
+Note that the file name of the development certificate must match the name of the ASP.NET Core app assembly,
+i.e. WebAuthnTest.Api.pfx. This development certificate must not be used in production! It was created using
+the `dotnet dev-certs https` CLI command.
+
 The following environment variables must be configured for proper operation:
 
 ASPNETCORE_ENVIRONMENT
-SQLCONNSTR_DEFAULT
-SQLAZURECONNSTR_DEFAULT (Production)
-AZURE_KEY_VAULT_ID (Production)
 APP_URL
+SQLCONNSTR_DEFAULT
+SQLAZURECONNSTR_DEFAULT (Production Only)
+AZURE_KEY_VAULT_ID (Production Only)
 
-For development, the environment variables have already been populated in the docker compose file, but can
-be tweaked as needed.
+For development, the environment variables have already been set in the docker compose file and can
+be tweaked as needed. Some other environment variables, not listed above, are required for development and
+have also been set in the docker-compose file.
+
 
 
 ## EF Core Migrations
@@ -56,7 +68,18 @@ The app has been configured to update the database automatically (apply all pend
 
 To run any dotnet CLI command, you will need version 6.0.x of the dotnet SDK installed on your machine.
 
-TODO: Setup docker
-TODO: Setup https
-TODO: Setup debugging
+TODO: Setup Vue app
+TODO: Setup https wih Vue
+TODO: Setup asp.net core debugging w/docker
 TODO: Setup ARM template, possibly with build pipeline
+
+
+The following documentation was helpful to setup this project:
+
+[Docker for ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/docker/building-net-docker-images?view=aspnetcore-6.0)
+
+[Host ASP.NET Core with HTTPS in Docker](https://github.com/dotnet/dotnet-docker/blob/main/samples/host-aspnetcore-https.md)
+
+[Configuring SQL Server for Docker](https://learn.microsoft.com/en-us/sql/linux/sql-server-linux-docker-container-configure)
+
+[Sync Container Startup in Docker Compose](https://github.com/vishnubob/wait-for-it)

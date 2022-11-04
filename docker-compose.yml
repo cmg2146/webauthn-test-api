@@ -1,0 +1,42 @@
+version: '3.1'
+
+services:
+
+  app:
+    build:
+      context: .
+    command: ["/wait-for-it.sh", "database:1433", "-t", "30", "--", "dotnet", "WebAuthnTest.Api.dll"]
+    ports:
+      #map hhtp port for http to https redirection
+      - 10000:80
+      - 10001:443
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      SQLCONNSTR_DEFAULT: Server=database;Database=WebAuthnTest;MultipleActiveResultSets=True;User Id=sa;Password=AdminPassword9@;
+      APP_URL: https://localhost:10001 
+      ASPNETCORE_URLS: https://+;http://+
+      ASPNETCORE_HTTPS_PORT: 10001       
+      ASPNETCORE_Kestrel__Certificates__Default__Path: /https/WebAuthnTest.Api.pfx
+      ASPNETCORE_Kestrel__Certificates__Default__Password: CertPassword1529
+    volumes:
+      #never copy the development certificate into the container. bind mount it for development
+      - .\WebAuthnTest.Api.pfx:/https/WebAuthnTest.Api.pfx:ro
+      - .\wait-for-it.sh:/wait-for-it.sh
+    depends_on:
+      - database
+
+  database:
+    image: "mcr.microsoft.com/mssql/server:2019-latest"
+    #mapping to a port on the host isnt necessary, but it's helpful if you want to connect
+    #to the database using SQL Server Management Studio
+    ports:   
+      - 1433:1433
+    environment:
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: "AdminPassword9@"
+      ACCEPT_EULA: "Y"
+    volumes:
+      - database:/var/opt/mssql
+
+volumes:
+  database:
