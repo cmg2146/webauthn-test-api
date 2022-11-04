@@ -24,7 +24,7 @@ The <span>ASP.</span>NET Core app was created with the following dotnet CLI comm
  ```dotnet new webapi --exclude-launch-settings --framework net6.0 --use-program-main```
 
 ## Build
-In development, the solution can be run using Docker by executing the following command at the repo root:
+In development, the solution can be run using Docker Linux containers by executing the following command at the repo root:
 
 ```docker-compose up```
 
@@ -40,11 +40,16 @@ the `dotnet dev-certs https` CLI command.
 
 The following environment variables must be configured for proper operation:
 
-ASPNETCORE_ENVIRONMENT
-APP_URL
-SQLCONNSTR_DEFAULT
-SQLAZURECONNSTR_DEFAULT (Production Only)
-AZURE_KEY_VAULT_ID (Production Only)
+* ASPNETCORE_ENVIRONMENT
+  * "Development" or "Production"
+* APP_URL
+  * The HTTPS URL to the server, i.e. https://localhost:10001
+* SQLCONNSTR_DEFAULT (Development only)
+  * The connection string to the database
+* SQLAZURECONNSTR_DEFAULT (Production Only)
+  * The connection string to the Azure SQL database
+* AZURE_KEY_VAULT_ID (Production Only)
+  * The Azure Key vault identifier. Key Vault encrpyts data protection keys at rest.
 
 For development, the environment variables have already been set in the docker compose file and can
 be tweaked as needed. Some other environment variables, not listed above, are required for development and
@@ -52,7 +57,7 @@ have also been set in the docker-compose file.
 
 
 
-## EF Core Migrations
+## Database Migrations
 You will need to add migrations whenever making schema changes to the database. To add a migration, run the following command
 within the "api" project:
 
@@ -66,12 +71,13 @@ The app has been configured to update the database automatically (apply all pend
 
 ## Notes
 
-To run any dotnet CLI command, you will need version 6.0.x of the dotnet SDK installed on your machine.
+To run any dotnet CLI command, you will need version 6.0.x of the .NET SDK installed on your machine. You can get it
+[here](https://dotnet.microsoft.com/en-us/download/dotnet/6.0).
 
-TODO: Setup Vue app
-TODO: Setup https wih Vue
-TODO: Setup <span>ASP.</span>NET core debugging w/docker
-TODO: Setup ARM template, possibly with build pipeline
+* TODO: Setup Vue app
+* TODO: Setup https wih Vue
+* TODO: Setup <span>ASP.</span>NET core debugging w/docker
+* TODO: Setup ARM template, possibly with build pipeline
 
 
 The following documentation was helpful to setup this project:
