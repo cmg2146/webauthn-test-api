@@ -238,7 +238,7 @@ ClientBin/
 *.dbmdl
 *.dbproj.schemaview
 *.jfm
-*.pfx
+*.pfx !WebAuthnTest.Api.pfx
 *.publishsettings
 orleans.codegen.cs
 
