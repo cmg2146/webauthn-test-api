@@ -1,9 +1,5 @@
+#TODO:Couldnt get nuxt dev server working with v18 LTS node
 FROM node:16-alpine as run
-
-ARG PORT=3000
-ENV PORT=$PORT
-
-EXPOSE $PORT
 
 ARG NODE_ENV=development
 ENV NODE_ENV=$NODE_ENV
@@ -26,6 +22,9 @@ FROM node:16-alpine as generate
 
 ARG NODE_ENV=production
 ENV NODE_ENV=$NODE_ENV
+
+ARG API_URL
+ENV API_URL=$API_URL
 
 WORKDIR /app
 COPY --from=run /app ./

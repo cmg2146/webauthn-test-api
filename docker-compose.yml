@@ -7,11 +7,14 @@ services:
       context: ./client
       target: run
       args:
-        - PORT=3000
         - NODE_ENV=development
         - API_URL=http://localhost:10001
     ports:
       - 10000:3000
+    environment:
+      #https://nuxtjs.org/docs/features/configuration/#edit-host-and-port
+      PORT: 3000
+      HOST: 0.0.0.0
 
   api:
     build:

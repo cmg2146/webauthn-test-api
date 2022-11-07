@@ -84,7 +84,6 @@ export default {
 
   //server only used for development because target = static
   server: {
-    port: process.env.PORT,
     https: {
       key: fs.readFileSync(path.resolve(__dirname, 'dev-server.key')),
       cert: fs.readFileSync(path.resolve(__dirname, 'dev-server.pem'))
