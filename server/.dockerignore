@@ -1,0 +1,11 @@
+*Dockerfile*
+*.dockerignore*
+*docker-compose*
+.git
+*.gitignore
+*.gitattributes
+*.config
+*.bin
+*.obj
+README.md
+wait-for-it.sh

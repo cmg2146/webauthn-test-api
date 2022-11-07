@@ -2,48 +2,47 @@
 This application contains a very basic sample of passwordless and usernameless authentication with WebAuthn.
 
 ## Structure
-The application contains three parts:
+The application contains two parts:
 
-1. database
-2. api
-3. ui
+1. server (API with database access via ORM)
+2. client (front-end/UI)
 
-The database part is a .NET 6.0 class library, relying on EF Core to communicate with the actual database,
-and the api part is a simple <span>ASP.</span>NET Core 6.0 app. The <span>ASP.</span>NET Core app references the database class library
-and builds into a single executable, comprising the API or "backend" portion of the application.
+The server part is a simple <span>ASP.</span>NET Core 6.0 web API. The API communicates with the database using
+Entity Framework Core.
 
-The ui part is implemented as a static web site using Vue.js and Nuxt. In production, the UI is served by the
-<span>ASP.</span>NET Core app, leveraging <span>ASP.</span>NET Core's static file serving feature. This is accomplished simply by copying
-the Vue.js built static files to the "wwwrooot" folder in the <span>ASP.</span>NET Core app.
+The front end is implemented as a static web site using Vue.js and Nuxt.
 
-Serving the UI and API on the same server makes it easy to use cookies for an authentication session and
-use a client side framework like Vue.
+In production and in development, the web API and front end are hosted separately, but requests to the API are
+proxied by the front end server, thus eliminating cross-origin issues and allowing cookies to be used for authentication.
+In production, nginx is used to serve the front end and proxy requests to the web API.
+
 
 The <span>ASP.</span>NET Core app was created with the following dotnet CLI command:
 
  ```dotnet new webapi --exclude-launch-settings --framework net6.0 --use-program-main```
+
+The Vue.js/Nuxt UI was created with the following npm command:
+
+```npm init nuxt-app@latest ./src/ui```
 
 ## Build
 In development, the solution can be run using Docker Linux containers by executing the following command at the repo root:
 
 ```docker-compose up```
 
-...and then opening your browser to http://localhost:10000.
+...and then opening your browser to https://localhost:10000.
 
-The app should automatically redirect you to HTTPS. If your browser warns you the site is unsafe, you can
-either "proceed as unsafe" or add the development certificate to your certificate store to avoid the warning
-again.
+If your browser warns you the site is unsafe, you can either "proceed as unsafe" or add the development certificate to
+your certificate store to avoid the warning again. This development certificate must not be used in production!
+It was created using the `dotnet dev-certs https` CLI command.
 
-Note that the file name of the development certificate must match the name of the <span>ASP.</span>NET Core app assembly,
-i.e. WebAuthnTest.Api.pfx. This development certificate must not be used in production! It was created using
-the `dotnet dev-certs https` CLI command.
-
-The following environment variables must be configured for proper operation:
+### Server/API
+The following environment variables must be configured, at run time, for proper operation:
 
 * ASPNETCORE_ENVIRONMENT
   * "Development" or "Production"
 * APP_URL
-  * The HTTPS URL to the server, i.e. https://localhost:10001
+  * The HTTPS URL to the client/front-end app, i.e. https://localhost:10000
 * SQLCONNSTR_DEFAULT (Development only)
   * The connection string to the database
 * SQLAZURECONNSTR_DEFAULT (Production Only)
@@ -51,10 +50,18 @@ The following environment variables must be configured for proper operation:
 * AZURE_KEY_VAULT_ID (Production Only)
   * The Azure Key vault identifier. Key Vault encrpyts data protection keys at rest.
 
-For development, the environment variables have already been set in the docker compose file and can
+### Client/UI
+The following environment variables must be configured, at build time, for proper operation:
+
+* NODE_ENV
+  * "development" or "production"
+* API_URL
+  * The URL to the server/web API, i.e. http://localhost:10001
+
+
+For development, all environment variables have already been set in the docker compose file and can
 be tweaked as needed. Some other environment variables, not listed above, are required for development and
 have also been set in the docker-compose file.
-
 
 
 ## Database Migrations
@@ -74,8 +81,7 @@ The app has been configured to update the database automatically (apply all pend
 To run any dotnet CLI command, you will need version 6.0.x of the .NET SDK installed on your machine. You can get it
 [here](https://dotnet.microsoft.com/en-us/download/dotnet/6.0).
 
-* TODO: Setup Vue app
-* TODO: Setup https wih Vue
+* TODO: Setup proxy, https wih Vue in dev. Configure proxy with nginx in prod. Configure CORS in api
 * TODO: Setup <span>ASP.</span>NET core debugging w/docker
 * TODO: Setup ARM template, possibly with build pipeline
 

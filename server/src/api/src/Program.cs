@@ -93,8 +93,11 @@ public class Program
             app.UseSwaggerUI();
         }
 
-        app.UseHttpsRedirection();
-        app.UseHsts();
+        if (!app.Environment.IsDevelopment())
+        {
+            app.UseHttpsRedirection();
+            app.UseHsts();
+        }
 
         app.UseSession();
 

@@ -2,25 +2,29 @@ version: '3.1'
 
 services:
 
-  app:
+  web: 
     build:
-      context: .
+      context: ./client
+      target: run
+      args:
+        - PORT=3000
+        - NODE_ENV=development
+        - API_URL=http://localhost:10001
+    ports:
+      - 10000:3000
+
+  api:
+    build:
+      context: ./server
     command: ["/wait-for-it.sh", "database:1433", "-t", "30", "--", "dotnet", "WebAuthnTest.Api.dll"]
     ports:
-      #map hhtp port for http to https redirection
-      - 10000:80
-      - 10001:443
+      # in development, the Nuxt dev server proxies "/api" routes to the asp.net core app on this port
+      - 10001:80
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       SQLCONNSTR_DEFAULT: Server=database;Database=WebAuthnTest;MultipleActiveResultSets=True;User Id=sa;Password=AdminPassword9@;
-      APP_URL: https://localhost:10001 
-      ASPNETCORE_URLS: https://+;http://+
-      ASPNETCORE_HTTPS_PORT: 10001       
-      ASPNETCORE_Kestrel__Certificates__Default__Path: /https/WebAuthnTest.Api.pfx
-      ASPNETCORE_Kestrel__Certificates__Default__Password: CertPassword1529
+      APP_URL: https://localhost:10000
     volumes:
-      #never copy the development certificate into the container. bind mount it for development
-      - .\WebAuthnTest.Api.pfx:/https/WebAuthnTest.Api.pfx:ro
       - .\wait-for-it.sh:/wait-for-it.sh
     depends_on:
       - database

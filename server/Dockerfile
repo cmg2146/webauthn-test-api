@@ -4,23 +4,16 @@ ENV ASPNETCORE_ENVIRONMENT=Production
 
 WORKDIR /src
 
-###TODO:Cannot get publish to work when doing a restore first
-# # do restore as separate step for caching
-# COPY ./src/api/WebAuthnTest.Api.csproj ./api/
-# COPY ./src/database/WebAuthnTest.Database.csproj ./database/
-# WORKDIR /src/api
-# RUN ["dotnet", "restore", "--force"]
+# TODO:Cannot get publish to work when doing a restore first
 
 # copy everything else and build app
-WORKDIR /src
 COPY ./src/api ./api
 COPY ./src/database ./database
 WORKDIR /src/api
 RUN ["dotnet", "publish", "-c", "release", "-o", "/app"]
-#, "--no-restore"]
 
 # final stage/image
-FROM mcr.microsoft.com/dotnet/aspnet:6.0 as dotnet-run
+FROM mcr.microsoft.com/dotnet/aspnet:6.0
 WORKDIR /app
 COPY --from=dotnet-build /app ./
 
