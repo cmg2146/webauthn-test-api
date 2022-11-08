@@ -51,8 +51,29 @@ export default {
   // Modules: https://go.nuxtjs.dev/config-modules
   modules: [
     // https://go.nuxtjs.dev/axios
-    '@nuxtjs/axios'
+    '@nuxtjs/axios',
+    '@nuxtjs/auth-next'
   ],
+
+  router: {
+    middleware: ['auth']
+  },
+
+  auth: {
+    strategies: {
+      cookie: {
+        cookie: {
+          name: process.env.AUTH_COOKIE_NAME,
+        }
+      },
+    },
+    redirect: {
+      login: '/login',
+      logout: '/',
+      callback: '/login',
+      home: '/'
+    }
+  },
 
   // Axios module configuration: https://go.nuxtjs.dev/config-axios
   axios: {
@@ -62,17 +83,17 @@ export default {
   // Vuetify module configuration: https://go.nuxtjs.dev/config-vuetify
   vuetify: {
     customVariables: ['~/assets/variables.scss'],
+    treeShake: true,
     theme: {
-      dark: true,
       themes: {
-        dark: {
-          primary: colors.blue.darken2,
-          accent: colors.grey.darken3,
-          secondary: colors.amber.darken3,
-          info: colors.teal.lighten1,
-          warning: colors.amber.base,
-          error: colors.deepOrange.accent4,
-          success: colors.green.accent3
+        light: {
+          primary: colors.blue.base,
+          accent: colors.blue.accent1,
+          secondary: colors.blue.lighten2,
+          info: colors.indigo.accent1,
+          warning: colors.orange.accent1,
+          error: colors.red.accent1,
+          success: colors.green.accent1
         }
       }
     }
@@ -89,8 +110,11 @@ export default {
       cert: fs.readFileSync(path.resolve(__dirname, 'dev-server.pem'))
     }
   },
-  proxy: {
+  proxy: {  
     //in development, we want to proxy all api requests to the ASP.NET Core app
-    '/api/': process.env.API_URL,
+    '/api': {
+      changeOrigin: false,
+      target: process.env.API_URL
+    }
   }
 }

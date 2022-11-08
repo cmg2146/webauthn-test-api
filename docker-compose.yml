@@ -5,16 +5,21 @@ services:
   web: 
     build:
       context: ./client
-      target: run
-      args:
-        - NODE_ENV=development
-        - API_URL=http://localhost:10001
+      target: install-deps
+    command: ["/wait-for-it.sh", "api:80", "-t", "30", "--", "npm", "run", "dev"]
     ports:
       - 10000:3000
     environment:
+      NODE_ENV: development
+      API_URL: http://api:80
+      AUTH_COOKIE_NAME: WebAuthnTest-IdentityCookie
       #https://nuxtjs.org/docs/features/configuration/#edit-host-and-port
       PORT: 3000
       HOST: 0.0.0.0
+    volumes:
+      - ./wait-for-it.sh:/wait-for-it.sh
+    depends_on:
+      - api
 
   api:
     build:
@@ -27,8 +32,10 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       SQLCONNSTR_DEFAULT: Server=database;Database=WebAuthnTest;MultipleActiveResultSets=True;User Id=sa;Password=AdminPassword9@;
       APP_URL: https://localhost:10000
+      AUTH_COOKIE_NAME: WebAuthnTest-IdentityCookie
+      Logging__LogLevel__Default: Debug
     volumes:
-      - .\wait-for-it.sh:/wait-for-it.sh
+      - ./wait-for-it.sh:/wait-for-it.sh
     depends_on:
       - database
 

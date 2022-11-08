@@ -1,21 +1,18 @@
 #TODO:Couldnt get nuxt dev server working with v18 LTS node
-FROM node:16-alpine as run
+FROM node:16-alpine as install-deps
 
-ARG NODE_ENV=development
-ENV NODE_ENV=$NODE_ENV
-
-ARG API_URL
-ENV API_URL=$API_URL
+RUN apk add --no-cache bash
 
 # do dependency installation as separate step for caching
 WORKDIR /app
 COPY ./package*.json ./
 RUN ["npm", "install", "--force"]
-
-# copy everything else and run app
+#copy all the rest of the files needed to run app
+#TODO: development: bind mount this instead for hot reloading
 COPY ./ ./
 
-CMD ["npm", "run", "dev"]
+#No CMD or entrypoint. In development, docker compose targets this stage and
+#specifies the command. In production, we fall through to next stage.
 
 
 FROM node:16-alpine as generate
@@ -26,8 +23,12 @@ ENV NODE_ENV=$NODE_ENV
 ARG API_URL
 ENV API_URL=$API_URL
 
+ARG AUTH_COOKIE_NAME
+ENV AUTH_COOKIE_NAME=$AUTH_COOKIE_NAME
+
 WORKDIR /app
-COPY --from=run /app ./
+COPY --from=install-deps /app ./
+
 RUN ["npm", "run", "generate"]
 
 

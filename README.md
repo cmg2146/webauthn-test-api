@@ -49,6 +49,8 @@ The following environment variables must be configured, at run time, for proper 
   * The connection string to the Azure SQL database
 * AZURE_KEY_VAULT_ID (Production Only)
   * The Azure Key vault identifier. Key Vault encrpyts data protection keys at rest.
+* AUTH_COOKIE_NAME
+  * The name of the cookie used by the API to authenticate users
 
 ### Client/UI
 The following environment variables must be configured, at build time, for proper operation:
@@ -56,8 +58,10 @@ The following environment variables must be configured, at build time, for prope
 * NODE_ENV
   * "development" or "production"
 * API_URL
-  * The URL to the server/web API, i.e. http://localhost:10001
-
+  * The URL to the server/web API, i.e. http://localhost:10001. This is only needed by the reverse
+  proxy - front-end does not know about this URL.
+* AUTH_COOKIE_NAME
+  * The name of the cookie used by the API to authenticate users
 
 For development, all environment variables have already been set in the docker compose file and can
 be tweaked as needed. Some other environment variables, not listed above, are required for development and
@@ -81,7 +85,8 @@ The app has been configured to update the database automatically (apply all pend
 To run any dotnet CLI command, you will need version 6.0.x of the .NET SDK installed on your machine. You can get it
 [here](https://dotnet.microsoft.com/en-us/download/dotnet/6.0).
 
-* TODO: Setup proxy, https wih Vue in dev. Configure proxy with nginx in prod. Configure CORS in api
+* TODO: Finish front-end
+* TODO: Configure proxy with nginx in prod.
 * TODO: Setup <span>ASP.</span>NET core debugging w/docker
 * TODO: Setup ARM template, possibly with build pipeline
 

@@ -143,11 +143,11 @@ public class WebAuthnController : Controller
             credentialCreateResult.Result.AttestationCertificate = null;
             credentialCreateResult.Result.AttestationCertificateChain = null;
 
-            return Json(credentialCreateResult);
+            return Ok(credentialCreateResult);
         }
         catch (Exception e)
         {
-            return Json(new Fido2.CredentialMakeResult(status: "error", errorMessage: FormatException(e), result: null));
+            return Ok(new Fido2.CredentialMakeResult(status: "error", errorMessage: FormatException(e), result: null));
         }
     }
 
@@ -170,12 +170,12 @@ public class WebAuthnController : Controller
 
             HttpContext.Session.SetString("webAuthn.credentialAssertionOptions", credentialAssertionOptions.ToJson());
 
-            return Json(credentialAssertionOptions);
+            return Ok(credentialAssertionOptions);
         }
 
         catch (Exception e)
         {
-            return Json(new AssertionOptions { Status = "error", ErrorMessage = FormatException(e) });
+            return Ok(new AssertionOptions { Status = "error", ErrorMessage = FormatException(e) });
         }
     }
 
@@ -232,11 +232,18 @@ public class WebAuthnController : Controller
 
             await HttpContext.SignInAsync(new ClaimsPrincipal(identity));
 
-            return Json(assertionVerificationResult);
+            return Ok(assertionVerificationResult);
         }
         catch (Exception e)
         {
-            return Json(new AssertionVerificationResult { Status = "error", ErrorMessage = FormatException(e) });
+            return Ok(new AssertionVerificationResult { Status = "error", ErrorMessage = FormatException(e) });
         }
     }
+
+    [HttpPost("logout")]
+    public async Task<IActionResult> LogoutAsync()
+    {
+        await HttpContext.SignOutAsync();
+        return Ok();
+    }    
 }

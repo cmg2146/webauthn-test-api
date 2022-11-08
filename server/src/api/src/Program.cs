@@ -34,6 +34,14 @@ public class Program
                     new ManagedIdentityCredential());
         }
 
+        builder.Services.AddCors(options =>
+        {
+            options.AddDefaultPolicy(policy =>
+            {
+                policy.WithOrigins(Environment.GetEnvironmentVariable("APP_URL")!);
+            });
+        });
+
         builder.Services.AddControllers();
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
@@ -43,14 +51,19 @@ public class Program
             .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
             .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
             {
-                options.LoginPath = new PathString("/login");
-                options.LogoutPath = new PathString("/logout");
-                options.ReturnUrlParameter = "returnUrl";
                 options.SlidingExpiration = true;
+                options.Cookie.Name = Environment.GetEnvironmentVariable("AUTH_COOKIE_NAME");
                 options.Cookie.IsEssential = true;
                 options.Cookie.HttpOnly = true;
                 options.Cookie.SameSite = SameSiteMode.Strict;
                 options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                options.Events.OnRedirectToLogin = (context) =>
+                {
+                    //dont redirect to login, default cookie behavior is to redirect
+                    //to loginPath
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    return Task.CompletedTask;
+                };                
                 //Note: This is a session cookie, would need something
                 //a bit more secure/robust for a real application
             });
@@ -78,7 +91,7 @@ public class Program
 
         builder.Services.AddFido2(options =>
         {
-            options.ServerDomain = Environment.GetEnvironmentVariable("APP_URL");
+            options.ServerDomain = new Uri(Environment.GetEnvironmentVariable("APP_URL")!).Host;
             options.ServerName = "WebAuthn Test";
             options.Origins.Add(Environment.GetEnvironmentVariable("APP_URL"));
             options.TimestampDriftTolerance = 100;
@@ -101,11 +114,8 @@ public class Program
 
         app.UseSession();
 
-        //This hooks in our Vue.js front end. Note: Don't add a wwwroot folder
-        //to the API project because the Vue.js app is built into this folder.
-        app.UseDefaultFiles();
-        app.UseStaticFiles();
-
+        app.UseCors();
+        
         app.UseAuthentication();
         app.UseAuthorization();
         
