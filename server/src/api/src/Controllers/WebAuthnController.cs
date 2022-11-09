@@ -9,12 +9,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Fido2NetLib;
 using Fido2NetLib.Objects;
 using WebAuthnTest.Database;
 
-
+[ApiController]
 [Route("api/webauthn")]
 public class WebAuthnController : Controller
 {
@@ -34,29 +35,25 @@ public class WebAuthnController : Controller
         return string.Format("{0}{1}", e.Message, e.InnerException != null ? " (" + e.InnerException.Message + ")" : "");
     }
 
-    [HttpGet("{userId}/register")]
-    public async Task<IActionResult> GetRegistrationOptionsAsync(
-        long userId,
+    [HttpGet("register")]
+    public async Task<IActionResult> GetCredentialCreationOptionsAsync(
         AttestationConveyancePreference attestationType,
         AuthenticatorAttachment? authType,
         CancellationToken cancellationToken)
     {
-        if (User.Identity?.Name != userId.ToString())
+        var userId = long.Parse(User.Identity?.Name!);
+
+        var user  = await _db
+            .Users
+            .FindAsync(userId, cancellationToken);
+
+        if (user == null)
         {
-            return Forbid();
+            return Unauthorized();
         }
 
         try
         {
-            var user  = await _db
-                .Users
-                .FindAsync(userId, cancellationToken);
-
-            if (user == null)
-            {
-                return NotFound();
-            }
-
             var authenticatorSelection = new AuthenticatorSelection
             {
                 UserVerification = UserVerificationRequirement.Required,
@@ -93,24 +90,21 @@ public class WebAuthnController : Controller
 
             HttpContext.Session.SetString("webAuthn.credentialCreateOptions", credentialCreationOptions.ToJson());
 
-            return Json(credentialCreationOptions);
+            return Ok(credentialCreationOptions);
         }
         catch (Exception e)
         {
-            return Json(new CredentialCreateOptions { Status = "error", ErrorMessage = FormatException(e) });
+            return Problem(FormatException(e), statusCode: StatusCodes.Status500InternalServerError);
         }
     }
 
-    [HttpPost("{userId}/register")]
-    public async Task<IActionResult> RegisterAsync(
-        long userId,
+    [HttpPost("register")]
+    public async Task<IActionResult> CreateCredentialAsync(
         AuthenticatorAttestationRawResponse attestationResponse,
         CancellationToken cancellationToken)
     {
-        if (User.Identity?.Name != userId.ToString())
-        {
-            return Forbid();
-        }
+        var userId = long.Parse(User.Identity?.Name!);
+        Fido2.CredentialMakeResult credentialCreateResult;
 
         try
         {
@@ -118,42 +112,42 @@ public class WebAuthnController : Controller
             var originalCreationOptions = CredentialCreateOptions
                 .FromJson(HttpContext.Session.GetString("webAuthn.credentialCreateOptions"));
 
-            var credentialCreateResult = await _fido2
+            credentialCreateResult = await _fido2
                 .MakeNewCredentialAsync(
                     attestationResponse,
                     originalCreationOptions,
                     //we have a unique index in the database so this would be redundant
                     async (args, _) => await Task.FromResult(true),
                     cancellationToken: cancellationToken);
-
-            _db.UserCredentials.Add(new UserCredential
-            {
-                UserId = userId,
-                CredentialId = credentialCreateResult.Result!.CredentialId,
-                PublicKey = credentialCreateResult.Result.PublicKey,
-                AttestationFormatId = credentialCreateResult.Result.CredType,
-                AaGuid = credentialCreateResult.Result.Aaguid,
-                DisplayName = credentialCreateResult.Result.AttestationCertificate!.FriendlyName,
-                SignatureCounter = credentialCreateResult.Result.Counter
-            });
-
-            await _db.SaveChangesAsync(cancellationToken);
-
-            // System.Text.Json cannot serialize these properly. See https://github.com/passwordless-lib/fido2-net-lib/issues/328
-            credentialCreateResult.Result.AttestationCertificate = null;
-            credentialCreateResult.Result.AttestationCertificateChain = null;
-
-            return Ok(credentialCreateResult);
         }
         catch (Exception e)
         {
-            return Ok(new Fido2.CredentialMakeResult(status: "error", errorMessage: FormatException(e), result: null));
+            return Unauthorized(FormatException(e));
         }
+
+        _db.UserCredentials.Add(new UserCredential
+        {
+            UserId = userId,
+            CredentialId = credentialCreateResult.Result!.CredentialId,
+            PublicKey = credentialCreateResult.Result.PublicKey,
+            AttestationFormatId = credentialCreateResult.Result.CredType,
+            AaGuid = credentialCreateResult.Result.Aaguid,
+            DisplayName = credentialCreateResult.Result.AttestationCertificate!.FriendlyName,
+            SignatureCounter = credentialCreateResult.Result.Counter
+        });
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+        // System.Text.Json cannot serialize these properly. See https://github.com/passwordless-lib/fido2-net-lib/issues/328
+        credentialCreateResult.Result.AttestationCertificate = null;
+        credentialCreateResult.Result.AttestationCertificateChain = null;
+
+        return Ok(credentialCreateResult);
     }
 
     [AllowAnonymous]
     [HttpGet("authenticate")]
-    public IActionResult GetAuthenticationOptions()
+    public IActionResult GetCredentialRequestOptions()
     {
         try
         {
@@ -175,47 +169,47 @@ public class WebAuthnController : Controller
 
         catch (Exception e)
         {
-            return Ok(new AssertionOptions { Status = "error", ErrorMessage = FormatException(e) });
+            return Problem(FormatException(e), statusCode: StatusCodes.Status500InternalServerError);
         }
     }
 
     [AllowAnonymous]
     [HttpPost("authenticate")]
-    public async Task<IActionResult> AuthenticateAsync(
+    public async Task<IActionResult> AuthenticateCredentialAsync(
         AuthenticatorAssertionRawResponse assertionResponse,
         CancellationToken cancellationToken)
     {
+        var userId = BitConverter.ToInt64(assertionResponse.Response.UserHandle);
+        var user = await _db
+            .Users
+            .FindAsync(userId, cancellationToken);
+
+        if (user == null)
+        {
+            return Unauthorized();
+        }
+
+        var credential = await _db
+            .Entry(user)
+            .Collection(t => t.UserCredentials)
+            .Query()
+            .FirstOrDefaultAsync(t => t.CredentialId == assertionResponse.Id, cancellationToken);
+
+        if (credential == null)
+        {
+            return Unauthorized();
+        }
+
         try
         {
             // get the assertion options we orignally sent the client
-            var options = AssertionOptions.FromJson(
+            var originalRequestOptions = AssertionOptions.FromJson(
                 HttpContext.Session.GetString("webAuthn.credentialAssertionOptions"));
-
-            var userId = BitConverter.ToInt64(assertionResponse.Response.UserHandle);
-            var user = await _db
-                .Users
-                .FindAsync(userId, cancellationToken);
-
-            if (user == null)
-            {
-                throw new Exception("User not found");
-            }
-
-            var credential = await _db
-                .Entry(user)
-                .Collection(t => t.UserCredentials)
-                .Query()
-                .FirstOrDefaultAsync(t => t.CredentialId == assertionResponse.Id, cancellationToken);
-
-            if (credential == null)
-            {
-                throw new Exception("Credential not found");
-            }
 
             var assertionVerificationResult = await _fido2
                 .MakeAssertionAsync(
                     assertionResponse,
-                    options,
+                    originalRequestOptions,
                     credential.PublicKey,
                     credential.SignatureCounter,
                     async (args, _) => await Task.FromResult(credential.UserId == userId),
@@ -225,25 +219,27 @@ public class WebAuthnController : Controller
             credential.SignatureCounter = assertionVerificationResult.Counter;
             _db.Update(credential);           
             await _db.SaveChangesAsync(cancellationToken);
-
-            //sign the user in
-            var identity = new ClaimsIdentity();
-            identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, userId.ToString()));
-
-            await HttpContext.SignInAsync(new ClaimsPrincipal(identity));
-
-            return Ok(assertionVerificationResult);
         }
         catch (Exception e)
         {
-            return Ok(new AssertionVerificationResult { Status = "error", ErrorMessage = FormatException(e) });
+            return Unauthorized(FormatException(e));
         }
+
+        var userIdClaim = new Claim(
+            ClaimTypes.NameIdentifier,
+            userId.ToString(),
+            ClaimValueTypes.UInteger64
+        );
+        var identity = new ClaimsIdentity(
+            Enumerable.Repeat(userIdClaim, 1),
+            CookieAuthenticationDefaults.AuthenticationScheme);
+
+        return SignIn(new ClaimsPrincipal(identity), CookieAuthenticationDefaults.AuthenticationScheme);
     }
 
     [HttpPost("logout")]
-    public async Task<IActionResult> LogoutAsync()
+    public IActionResult Logout()
     {
-        await HttpContext.SignOutAsync();
-        return Ok();
+        return SignOut(CookieAuthenticationDefaults.AuthenticationScheme);
     }    
 }

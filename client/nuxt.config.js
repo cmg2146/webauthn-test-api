@@ -64,7 +64,17 @@ export default {
       cookie: {
         cookie: {
           name: process.env.AUTH_COOKIE_NAME,
-        }
+        },
+        user: {
+          property: false,
+          autoFetch: true
+        },
+        endpoints: {
+          login: { url: '/api/webauthn/authenticate', method: 'post' },
+          logout: { url: '/api/webauthn/logout', method: 'post' },
+          user: { url: '/api/users/me', method: 'get' }
+        },
+        token: false
       },
     },
     redirect: {
