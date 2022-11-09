@@ -41,7 +41,7 @@ public class WebAuthnController : Controller
         AuthenticatorAttachment? authType,
         CancellationToken cancellationToken)
     {
-        var userId = long.Parse(User.Identity?.Name!);
+        var userId = User.Identity!.UserId();
 
         var user  = await _db
             .Users
@@ -103,7 +103,7 @@ public class WebAuthnController : Controller
         AuthenticatorAttestationRawResponse attestationResponse,
         CancellationToken cancellationToken)
     {
-        var userId = long.Parse(User.Identity?.Name!);
+        var userId = User.Identity!.UserId();
         Fido2.CredentialMakeResult credentialCreateResult;
 
         try
@@ -225,16 +225,39 @@ public class WebAuthnController : Controller
             return Unauthorized(FormatException(e));
         }
 
-        var userIdClaim = new Claim(
-            ClaimTypes.NameIdentifier,
+        var identity = new ClaimsIdentity(CookieAuthenticationDefaults.AuthenticationScheme);
+        identity.AddClaim(new Claim(
+            identity.NameClaimType,
             userId.ToString(),
             ClaimValueTypes.UInteger64
-        );
-        var identity = new ClaimsIdentity(
-            Enumerable.Repeat(userIdClaim, 1),
-            CookieAuthenticationDefaults.AuthenticationScheme);
+        ));
 
         return SignIn(new ClaimsPrincipal(identity), CookieAuthenticationDefaults.AuthenticationScheme);
+    }
+
+    [AllowAnonymous]
+    [HttpPost("register-user")]
+    public async Task<IActionResult> CreateAccountAsync(UserModel user)
+    {
+        var userToAdd = new User
+        {
+            DisplayName = user.DisplayName,
+            FirstName = user.FirstName,
+            LastName = user.LastName
+        };
+
+        var entry = _db.Users.Add(userToAdd);
+        await _db.SaveChangesAsync();
+
+        var identity = new ClaimsIdentity(CookieAuthenticationDefaults.AuthenticationScheme);
+        identity.AddClaim(new Claim(
+            identity.NameClaimType,
+            entry.Entity.Id.ToString(),
+            ClaimValueTypes.UInteger64
+        ));
+
+        //go ahead and sign the user although no credentials registered yet
+        return SignIn(new ClaimsPrincipal(identity), CookieAuthenticationDefaults.AuthenticationScheme);        
     }
 
     [HttpPost("logout")]

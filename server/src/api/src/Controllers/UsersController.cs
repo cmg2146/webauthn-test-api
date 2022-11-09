@@ -22,6 +22,8 @@ public class UsersController : Controller
     }
 
     [HttpGet("{userId}")]
+    //there is a bug so need to declare the action name for this one
+    [ActionName(nameof(GetUserAsync))]
     public async Task<IActionResult> GetUserAsync(long userId)
     {
         if (User.Identity?.Name != userId.ToString())
@@ -48,9 +50,6 @@ public class UsersController : Controller
         });
     }
 
-    //Typically, an API endpoint like this would not allow anonymous access,
-    //but we are using it for new user registration
-    [AllowAnonymous]
     [HttpPost("")]
     public async Task<IActionResult> CreateUserAsync(UserModel user)
     {
@@ -64,23 +63,6 @@ public class UsersController : Controller
         var entry = _db.Users.Add(userToAdd);
         await _db.SaveChangesAsync();
 
-        if (User.Identity?.IsAuthenticated != true)
-        {
-            //go ahead and sign the user in even though they dont have any auth devices setup yet
-            var userIdClaim = new Claim(
-                ClaimTypes.NameIdentifier,
-                entry.Entity.Id.ToString(),
-                ClaimValueTypes.UInteger64
-            );
-            var identity = new ClaimsIdentity(
-                Enumerable.Repeat(userIdClaim, 1),
-                CookieAuthenticationDefaults.AuthenticationScheme);
-
-            await HttpContext.SignInAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme,
-                new ClaimsPrincipal(identity));                
-        }
-
         user.Id = entry.Entity.Id;
         user.Created = entry.Entity.Created;
 
@@ -93,7 +75,7 @@ public class UsersController : Controller
     [HttpGet("me")]
     public IActionResult GetMyInfo()
     {
-        var userId = long.Parse(User.Identity?.Name!);
+        var userId = User.Identity!.UserId();
 
         return RedirectToAction(nameof(GetUserAsync), new { userId = userId });
     }
@@ -101,7 +83,7 @@ public class UsersController : Controller
     [HttpGet("me/credentials")]
     public IActionResult GetMyCredentials()
     {
-        var userId = long.Parse(User.Identity?.Name!);
+        var userId = User.Identity!.UserId();
 
         var credentials = _db
             .UserCredentials
@@ -125,7 +107,7 @@ public class UsersController : Controller
     public async Task<IActionResult> DeleteMyCredentialAsync(
         long credentialId)
     {
-        var userId = long.Parse(User.Identity?.Name!);
+        var userId = User.Identity!.UserId();
 
         var credential = await _db
             .UserCredentials

@@ -112,7 +112,7 @@ export default {
           .$auth
           .loginWith(
             'cookie', {
-              url: '/api/users',
+              url: '/api/webauthn/register-user',
               method: 'post',
               data: user
             }
