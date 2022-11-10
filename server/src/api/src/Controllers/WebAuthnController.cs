@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -37,7 +38,6 @@ public class WebAuthnController : Controller
 
     [HttpGet("register")]
     public async Task<IActionResult> GetCredentialCreationOptionsAsync(
-        AttestationConveyancePreference attestationType,
         AuthenticatorAttachment? authType,
         CancellationToken cancellationToken)
     {
@@ -45,7 +45,7 @@ public class WebAuthnController : Controller
 
         var user  = await _db
             .Users
-            .FindAsync(userId, cancellationToken);
+            .SingleOrDefaultAsync(t => t.Id == userId, cancellationToken);
 
         if (user == null)
         {
@@ -74,9 +74,8 @@ public class WebAuthnController : Controller
             };
 
             var existingCredentials = await _db
-                .Entry(user)
-                .Collection(t => t.UserCredentials)
-                .Query()
+                .UserCredentials
+                .Where(t => t.UserId == userId)
                 .Select(t => new PublicKeyCredentialDescriptor(t.CredentialId))
                 .ToListAsync(cancellationToken);               
             
@@ -85,7 +84,7 @@ public class WebAuthnController : Controller
                     fido2User,
                     existingCredentials,
                     authenticatorSelection,
-                    attestationType,
+                    AttestationConveyancePreference.Indirect,
                     exts);
 
             HttpContext.Session.SetString("webAuthn.credentialCreateOptions", credentialCreationOptions.ToJson());
@@ -125,16 +124,24 @@ public class WebAuthnController : Controller
             return Unauthorized(FormatException(e));
         }
 
-        _db.UserCredentials.Add(new UserCredential
+        //TODO: Delete existing credential if it has same Id
+        var userCredentialToAdd = new UserCredential
         {
             UserId = userId,
             CredentialId = credentialCreateResult.Result!.CredentialId,
             PublicKey = credentialCreateResult.Result.PublicKey,
             AttestationFormatId = credentialCreateResult.Result.CredType,
             AaGuid = credentialCreateResult.Result.Aaguid,
-            DisplayName = credentialCreateResult.Result.AttestationCertificate!.FriendlyName,
+            DisplayName = credentialCreateResult.Result.CredType,
             SignatureCounter = credentialCreateResult.Result.Counter
-        });
+        };
+
+        using (var hash = SHA512.Create())
+        {
+            userCredentialToAdd.CredentialIdHash = hash.ComputeHash(userCredentialToAdd.CredentialId);
+        }
+
+        var entry = _db.UserCredentials.Add(userCredentialToAdd);
 
         await _db.SaveChangesAsync(cancellationToken);
 
@@ -143,6 +150,28 @@ public class WebAuthnController : Controller
         credentialCreateResult.Result.AttestationCertificateChain = null;
 
         return Ok(credentialCreateResult);
+    }
+
+
+    [HttpGet("active-credential")]
+    public async Task<IActionResult> GetActiveCredentialAsync(
+        CancellationToken cancellationToken)
+    {
+        var credentialIdClaim = (User.Identity as ClaimsIdentity)
+            !.FindFirst("userCredentialId");
+
+        if (long.TryParse(credentialIdClaim?.Value, out long credentialId))
+        {
+            var credential = await _db
+                .UserCredentials
+                .SingleOrDefaultAsync(t => t.Id == credentialId, cancellationToken);
+
+            return Ok(credential);
+        }
+        else
+        {
+            return NotFound();
+        }
     }
 
     [AllowAnonymous]
@@ -182,7 +211,7 @@ public class WebAuthnController : Controller
         var userId = BitConverter.ToInt64(assertionResponse.Response.UserHandle);
         var user = await _db
             .Users
-            .FindAsync(userId, cancellationToken);
+            .SingleOrDefaultAsync(t => t.Id == userId, cancellationToken);
 
         if (user == null)
         {
@@ -190,10 +219,10 @@ public class WebAuthnController : Controller
         }
 
         var credential = await _db
-            .Entry(user)
-            .Collection(t => t.UserCredentials)
-            .Query()
-            .FirstOrDefaultAsync(t => t.CredentialId == assertionResponse.Id, cancellationToken);
+            .UserCredentials
+            .SingleOrDefaultAsync(t =>
+                t.UserId == userId && t.CredentialId == assertionResponse.Id,
+                cancellationToken);
 
         if (credential == null)
         {
@@ -231,7 +260,16 @@ public class WebAuthnController : Controller
             userId.ToString(),
             ClaimValueTypes.UInteger64
         ));
-
+        identity.AddClaim(new Claim(
+            ClaimTypes.AuthenticationMethod,
+            "webauthn"
+        ));
+        identity.AddClaim(new Claim(
+            "userCredentialId",
+            credential.Id.ToString(),
+            ClaimValueTypes.UInteger64
+        ));
+                
         return SignIn(new ClaimsPrincipal(identity), CookieAuthenticationDefaults.AuthenticationScheme);
     }
 

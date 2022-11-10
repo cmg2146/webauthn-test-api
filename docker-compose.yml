@@ -12,7 +12,6 @@ services:
     environment:
       NODE_ENV: development
       API_URL: http://api:80
-      AUTH_COOKIE_NAME: WebAuthnTest-IdentityCookie
       #https://nuxtjs.org/docs/features/configuration/#edit-host-and-port
       PORT: 3000
       HOST: 0.0.0.0
@@ -32,7 +31,6 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       SQLCONNSTR_DEFAULT: Server=database;Database=WebAuthnTest;MultipleActiveResultSets=True;User Id=sa;Password=AdminPassword9@;
       APP_URL: https://localhost:10000
-      AUTH_COOKIE_NAME: WebAuthnTest-IdentityCookie
       Logging__LogLevel__Default: Debug
     volumes:
       - ./wait-for-it.sh:/wait-for-it.sh

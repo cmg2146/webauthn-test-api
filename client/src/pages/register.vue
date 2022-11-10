@@ -21,10 +21,12 @@
     <v-row justify="center" align="start">
       <v-col cols="12" md="6" lg="5" class="d-flex flex-column align-stretch">
         <v-card
-          outlined
-          class="register-card pa-5"
+          class="pa-5"
         >
-          <v-form ref="registerForm" @submit="onSubmitRegistration">
+          <v-form
+            ref="registerForm"
+            @submit.prevent="onSubmitRegistration"
+          >
             <v-card-text>
               <v-text-field
                 v-model="displayName"
@@ -68,7 +70,7 @@
         <v-alert
           v-model="registrationError"
           color="error"
-          class="register-card pa-5"
+          class="pa-5"
         >
           {{registrataionErrorMessage}}  
         </v-alert>
@@ -122,14 +124,8 @@ export default {
             this.registrationError = true;
             this.registrataionErrorMessage = error;
           });
-      }      
+      }
     }
   }
 };
 </script>
-
-<style scoped>
-  .register-card {
-    background-color: #fafafa; 
-  }
-</style>

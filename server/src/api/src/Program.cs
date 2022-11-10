@@ -52,7 +52,7 @@ public class Program
             .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
             {
                 options.SlidingExpiration = true;
-                options.Cookie.Name = Environment.GetEnvironmentVariable("AUTH_COOKIE_NAME");
+                options.Cookie.Name = "WebAuthnTest-IdentityCookie";
                 options.Cookie.IsEssential = true;
                 options.Cookie.HttpOnly = true;
                 options.Cookie.SameSite = SameSiteMode.Strict;
@@ -82,7 +82,8 @@ public class Program
         builder.Services.AddSession(options =>
         {
             options.IdleTimeout = TimeSpan.FromMinutes(5);
-            options.Cookie.Name = "WebAuthnOptionsCookies";
+            options.Cookie.Name = "WebAuthnTest-ChallengeCookie";
+            options.Cookie.MaxAge = TimeSpan.FromMinutes(5);
             options.Cookie.IsEssential = true;
             options.Cookie.HttpOnly = true;
             options.Cookie.SameSite = SameSiteMode.Strict;
@@ -91,9 +92,11 @@ public class Program
 
         builder.Services.AddFido2(options =>
         {
-            options.ServerDomain = new Uri(Environment.GetEnvironmentVariable("APP_URL")!).Host;
+            var appUrl = Environment.GetEnvironmentVariable("APP_URL")!;
+
+            options.ServerDomain = new Uri(appUrl).Host;
             options.ServerName = "WebAuthn Test";
-            options.Origins.Add(Environment.GetEnvironmentVariable("APP_URL"));
+            options.Origins = new HashSet<string>(Enumerable.Repeat(appUrl, 1));
             options.TimestampDriftTolerance = 100;
         });
 

@@ -24,14 +24,18 @@ public class UsersController : Controller
     [HttpGet("{userId}")]
     //there is a bug so need to declare the action name for this one
     [ActionName(nameof(GetUserAsync))]
-    public async Task<IActionResult> GetUserAsync(long userId)
+    public async Task<IActionResult> GetUserAsync(
+        long userId,
+        CancellationToken cancellationToken)
     {
         if (User.Identity?.Name != userId.ToString())
         {
             return Forbid();
         }
 
-        var user = await _db.Users.FindAsync(userId);
+        var user = await _db
+            .Users
+            .SingleOrDefaultAsync(t => t.Id == userId, cancellationToken);
 
         //should never happen
         if (user == null)
@@ -51,7 +55,9 @@ public class UsersController : Controller
     }
 
     [HttpPost("")]
-    public async Task<IActionResult> CreateUserAsync(UserModel user)
+    public async Task<IActionResult> CreateUserAsync(
+        UserModel user,
+        CancellationToken cancellationToken)
     {
         var userToAdd = new User
         {
@@ -61,7 +67,7 @@ public class UsersController : Controller
         };
 
         var entry = _db.Users.Add(userToAdd);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
 
         user.Id = entry.Entity.Id;
         user.Created = entry.Entity.Created;
@@ -105,28 +111,34 @@ public class UsersController : Controller
 
     [HttpDelete("me/credentials/{credentialId}")]
     public async Task<IActionResult> DeleteMyCredentialAsync(
-        long credentialId)
+        long credentialId,
+        CancellationToken cancellationToken)
     {
         var userId = User.Identity!.UserId();
 
         var credential = await _db
             .UserCredentials
-            .Where(t => t.Id == credentialId)
             .Select(t => new
             {
                 Id = t.Id,
+                CredentialIdHash = t.CredentialIdHash,
                 UserId = t.UserId
             })
-            .SingleOrDefaultAsync();
+            .SingleOrDefaultAsync(t => t.Id == credentialId, cancellationToken);
 
         //return not found if the credential belongs to another user - dont want to leak any information
         if (credential == null || credential.UserId != userId)
         {
-            return NotFound("Credential not found");
+            return NotFound();
         }
 
-        _db.UserCredentials.Remove(new UserCredential { Id = credentialId });
-        await _db.SaveChangesAsync();
+        _db.UserCredentials.Remove(new UserCredential
+        {
+            Id = credentialId,
+            //must specfiy this here because its an alternate key or EF can't track the entity.
+            CredentialIdHash = credential.CredentialIdHash
+        });
+        await _db.SaveChangesAsync(cancellationToken);
 
         return NoContent();
     }    

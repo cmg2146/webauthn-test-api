@@ -21,10 +21,11 @@
     <v-row justify="center" align="start">
       <v-col cols="12" class="d-flex justify-center">
         <v-card
-          outlined
           class="login-card pa-5"
         >
-          <form>
+          <v-form
+            @submit.prevent="onLoginSubmit"
+          >
             <v-card-text>
               Click below to login with your computer, phone, or security key.
             </v-card-text>
@@ -33,10 +34,10 @@
                 block
                 color="primary"
                 :loading="authenticating"
-                @click="onLoginClick"
+                type="submit"
               >Login</v-btn>
             </v-card-text>
-          </form>
+          </v-form>
           <v-card-text>
             <span>Or </span>
             <NuxtLink
@@ -74,7 +75,7 @@ export default {
     };
   },
   methods: {
-    onLoginClick() {
+    onLoginSubmit() {
       this.authenticating = true;
       this.authenticationError = false;
       this.authenticationErrorMessage = '';
@@ -100,6 +101,5 @@ export default {
 <style scoped>
   .login-card {
     width: 400px;
-    background-color: #fafafa; 
   }
 </style>

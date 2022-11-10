@@ -62,9 +62,9 @@ export default {
   auth: {
     strategies: {
       cookie: {
-        cookie: {
-          name: process.env.AUTH_COOKIE_NAME,
-        },
+        //note: cookie name cannot be configured or else auth will not work with http only cookies.
+        //Obviously http only cookies are a fundamental requirement. In order for http only to work,
+        //autoFetch must be true or the user must be set manually.
         user: {
           property: false,
           autoFetch: true
@@ -73,13 +73,12 @@ export default {
           login: { url: '/api/webauthn/authenticate', method: 'post' },
           logout: { url: '/api/webauthn/logout', method: 'post' },
           user: { url: '/api/users/me', method: 'get' }
-        },
-        token: false
+        }
       },
     },
     redirect: {
       login: '/login',
-      logout: '/',
+      logout: '/login',
       callback: '/login',
       home: '/'
     }
