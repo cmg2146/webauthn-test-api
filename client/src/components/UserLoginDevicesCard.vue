@@ -126,6 +126,7 @@
     <v-card-actions class="d-flex justify-center px-10 py-5">
       <v-btn
         text
+        block
         :loading="registering"
         @click="onAddDevice"
       >
