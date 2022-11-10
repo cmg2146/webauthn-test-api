@@ -76,6 +76,7 @@ export default {
         }
       },
     },
+    watchLoggedIn: true,
     redirect: {
       login: '/login',
       logout: '/login',

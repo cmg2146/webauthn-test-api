@@ -82,7 +82,7 @@
 <script>
 export default {
   name: 'RegisterPage',
-  auth: false,
+  auth: 'guest',
   data () {
     return {
       registering: false,

@@ -66,7 +66,7 @@ import { startAuthentication } from '@simplewebauthn/browser';
 
 export default {
   name: 'LoginPage',
-  auth: false,
+  auth: 'guest',
   data () {
     return {
       authenticating: false,
