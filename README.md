@@ -81,13 +81,16 @@ The app has been configured to update the database automatically (apply all pend
 To run any dotnet CLI command, you will need version 6.0.x of the .NET SDK installed on your machine. You can get it
 [here](https://dotnet.microsoft.com/en-us/download/dotnet/6.0).
 
+* TODO: Secure the login and register page
+  * Ensure CSRF is handled properly.
+  * Add device registration to register page
+  * Implement captcha for create account
 * TODO: Finalize Production Deployment
-  * Configure proxy with nginx in.
-  * Setup ARM template
+  * Configure proxy with nginx.
+  * Setup Bicep template
   * Setup DevOps build pipeline
   * Setup custom domain?
 * TODO: Setup <span>ASP.</span>NET core debugging w/docker
-* TODO: Implement captcha for create account
 
 
 The following documentation was helpful to setup this project:

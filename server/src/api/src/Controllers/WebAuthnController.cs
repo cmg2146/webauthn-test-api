@@ -124,7 +124,7 @@ public class WebAuthnController : Controller
             return Unauthorized(FormatException(e));
         }
 
-        //TODO: Delete existing credential if it has same Id
+        //TODO: Delete existing credential if it has same Id?
         var userCredentialToAdd = new UserCredential
         {
             UserId = userId,
