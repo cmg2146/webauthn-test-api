@@ -83,8 +83,7 @@ To run any dotnet CLI command, you will need version 6.0.x of the .NET SDK insta
 
 * TODO: Secure the login and register page
   * Ensure CSRF is handled properly.
-  * Add device registration to register page
-  * Implement captcha for create account
+  * Add device registration to register page (this will solve user prescence issue)
 * TODO: Finalize Production Deployment
   * Configure proxy with nginx.
   * Setup Bicep template
