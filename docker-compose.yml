@@ -2,35 +2,16 @@ version: '3.1'
 
 services:
 
-  web: 
-    build:
-      context: ./client
-      target: install-deps
-    command: ["/wait-for-it.sh", "api:80", "-t", "30", "--", "npm", "run", "dev"]
-    ports:
-      - 10000:3000
-    environment:
-      NODE_ENV: development
-      API_URL: http://api:80
-      #https://nuxtjs.org/docs/features/configuration/#edit-host-and-port
-      PORT: 3000
-      HOST: 0.0.0.0
-    volumes:
-      - ./wait-for-it.sh:/wait-for-it.sh
-    depends_on:
-      - api
-
   api:
     build:
-      context: ./server
+      context: .
     command: ["/wait-for-it.sh", "database:1433", "-t", "30", "--", "dotnet", "WebAuthnTest.Api.dll"]
     ports:
-      # in development, the Nuxt dev server proxies "/api" routes to the asp.net core app on this port
       - 10001:80
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       SQLCONNSTR_DEFAULT: Server=database;Database=WebAuthnTest;MultipleActiveResultSets=True;User Id=sa;Password=AdminPassword9@;
-      APP_URL: https://localhost:10000
+      WEB_URL: https://localhost:10000
       Logging__LogLevel__Default: Debug
     volumes:
       - ./wait-for-it.sh:/wait-for-it.sh

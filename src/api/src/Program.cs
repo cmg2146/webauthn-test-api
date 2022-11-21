@@ -38,7 +38,7 @@ public class Program
         {
             options.AddDefaultPolicy(policy =>
             {
-                policy.WithOrigins(Environment.GetEnvironmentVariable("APP_URL")!);
+                policy.WithOrigins(Environment.GetEnvironmentVariable("WEB_URL")!);
             });
         });
 
@@ -92,7 +92,7 @@ public class Program
 
         builder.Services.AddFido2(options =>
         {
-            var appUrl = Environment.GetEnvironmentVariable("APP_URL")!;
+            var appUrl = Environment.GetEnvironmentVariable("WEB_URL")!;
 
             options.ServerDomain = new Uri(appUrl).Host;
             options.ServerName = "WebAuthn Test";

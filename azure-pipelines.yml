@@ -20,10 +20,9 @@ stages:
       displayName: Build Docker Image
       inputs:
         command: buildAndPush
-        dockerfile: ./server/Dockerfile
         containerRegistry: dockerRegistryServiceConnection
         repository: $(imageName)
         tags: |
           $(buildNumber)
           latest
-    #TODO: Restart app service
+#TODO: Restart app service
