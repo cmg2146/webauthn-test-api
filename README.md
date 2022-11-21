@@ -1,5 +1,5 @@
 # WebAuthn Test API 
-This repo contains the API for the WebAuthn-Test application. See the webauthn-test-ui repo for a
+This repo contains the API for the WebAuthn-Test application. See the webauthn-test-web repo for a
 complete description of the application.
 
 This web API is a simple <span>ASP.</span>NET Core 6.0 app which communicates with a database using
