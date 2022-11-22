@@ -7,22 +7,30 @@ pool:
   vmImage: ubuntu-latest
 
 variables:
-  imageName: 'webauthn-test/api'
-  dockerRegistryServiceConnection: ''
+  azureSubscription: 'sw-development-connection'
+  dockerRegistryServiceConnection: 'cmgdev-acr'
+  appName: 'webauthn-test-api'
+  containerRegistryName: 'cmgdev.azurecr.io'
+  imageRepository: 'webauthn-test/api'
+  tag: $(Build.BuildNumber)
 
 stages:
 - stage: Build API
   jobs:
   - job: Build API
-    displayName: Build API
-    steps:
+    steps:  
     - task: Docker@2
       displayName: Build Docker Image
       inputs:
         command: buildAndPush
-        containerRegistry: dockerRegistryServiceConnection
-        repository: $(imageName)
+        containerRegistry: $(dockerRegistryServiceConnection)
+        repository: $(imageRepository)
         tags: |
-          $(buildNumber)
+          $(tag)
           latest
-#TODO: Restart app service
+    - task: AzureWebAppContainer@1
+      displayName: 'Azure Web App for Containers Deploy'
+      inputs:
+        azureSubscription: $(azureSubscription)
+        appName: $(appName)
+        imageName: $(containerRegistryName)/$(imageRepository):$(tag)
