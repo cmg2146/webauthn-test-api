@@ -15,9 +15,11 @@ variables:
   tag: $(Build.BuildNumber)
 
 stages:
-- stage: Build API
+- stage: Deploy_API
+  displayName: Build and Deploy API
   jobs:
-  - job: Build API
+  - job: Deploy_API
+    displayName: Build and Deploy API
     steps:  
     - task: Docker@2
       displayName: Build Docker Image
