@@ -10,7 +10,7 @@ variables:
   azureSubscription: 'sw-development-connection'
   dockerRegistryServiceConnection: 'cmgdev-acr'
   appName: 'webauthn-test-api'
-  containerRegistryName: 'cmgdev.azurecr.io'
+  containerRegistryNamespace: 'cmgdev.azurecr.io'
   imageRepository: 'webauthn-test/api'
   tag: $(Build.BuildNumber)
 
@@ -30,9 +30,13 @@ stages:
         tags: |
           $(tag)
           latest
-    - task: AzureWebAppContainer@1
-      displayName: 'Azure Web App for Containers Deploy'
+    - task: AzureRmWebAppDeployment@4
+      displayName: Deploy to App Service
       inputs:
+        ConnectionType: 'AzureRM'
         azureSubscription: $(azureSubscription)
-        appName: $(appName)
-        imageName: $(containerRegistryName)/$(imageRepository):$(tag)
+        appType: 'webAppContainer'
+        WebAppName: $(appName)
+        DockerNamespace: $(containerRegistryNamespace)
+        DockerRepository: $(imageRepository)
+        DockerImageTag: $(tag)
