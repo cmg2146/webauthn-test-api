@@ -40,3 +40,9 @@ stages:
         DockerNamespace: $(containerRegistryNamespace)
         DockerRepository: $(imageRepository)
         DockerImageTag: $(tag)
+    - task: AzureAppServiceManage@0
+      displayName: Restart App Service
+      inputs:
+        azureSubscription: $(azureSubscription)
+        action: Restart Azure App Service
+        webAppName: $(appName)
