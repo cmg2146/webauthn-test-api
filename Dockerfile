@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:6.0 AS dotnet-build
+FROM mcr.microsoft.com/dotnet/sdk:6.0-bullseye-slim AS dotnet-build
 
 ENV ASPNETCORE_ENVIRONMENT=Production
 ENV Logging__LogLevel__Default=Information
@@ -14,7 +14,7 @@ WORKDIR /src/api
 RUN ["dotnet", "publish", "-c", "release", "-o", "/app"]
 
 # final stage/image
-FROM mcr.microsoft.com/dotnet/aspnet:6.0
+FROM mcr.microsoft.com/dotnet/aspnet:6.0-bullseye-slim
 WORKDIR /app
 COPY --from=dotnet-build /app ./
 
