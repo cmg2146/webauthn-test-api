@@ -28,7 +28,7 @@ public class UsersController : Controller
         long userId,
         CancellationToken cancellationToken)
     {
-        if (User.Identity?.Name != userId.ToString())
+        if (User.Identity!.UserId() != userId)
         {
             return Forbid();
         }
