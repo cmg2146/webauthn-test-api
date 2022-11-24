@@ -49,6 +49,7 @@ The app has been configured to update the database automatically (apply all pend
 To run any dotnet CLI command, you will need version 6.0.x of the .NET SDK installed on your machine. You can get it
 [here](https://dotnet.microsoft.com/en-us/download/dotnet/6.0).
 
+* TODO: Security Keys currently not working
 * TODO: Setup <span>ASP.</span>NET core debugging w/docker
 
 
