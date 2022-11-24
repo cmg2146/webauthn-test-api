@@ -34,9 +34,9 @@ have also been set in the docker-compose file.
 
 ## Database Migrations
 You will need to add migrations whenever making schema changes to the database. To add a migration, run the following command
-within the "api" project:
+at the repo root:
 
-```dotnet ef migrations add NameOfNewMigration --project ../database -- ConnectionStrings:Default="Data Source=Dummy String"```
+```dotnet ef migrations add NameOfNewMigration --project ./src/database --startup-project ./src/api -- ConnectionStrings:Default="Data Source=Dummy String"```
 
 Due to the way the EF Core CLI tool acquires the DbContext, you will need to pass a connection string to any command or the
 command will fail. Fortunately, the add migration command doesn't really need a database, so you can pass a bogus string.
