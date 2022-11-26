@@ -109,7 +109,7 @@ public class UsersController : Controller
 
         var user = await _db
             .Users
-            .FindAsync(userId, cancellationToken);
+            .SingleOrDefaultAsync(t => t.Id == userId, cancellationToken);
 
         //should never happen
         if (user == null)
