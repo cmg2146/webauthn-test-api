@@ -10,7 +10,8 @@ using Microsoft.AspNetCore.Authorization;
 using WebAuthnTest.Database;
 
 [ApiController]
-[Route("api/users")]
+[Route("users")]
+[Produces("application/json")]
 public class UsersController : Controller
 {
     private WebAuthnTestDbContext _db;
@@ -21,10 +22,20 @@ public class UsersController : Controller
         _db = db;
     }
 
-    [HttpGet("{userId}")]
-    //there is a bug so need to declare the action name for this one
-    [ActionName(nameof(GetUserAsync))]
-    public async Task<IActionResult> GetUserAsync(
+    /// <summary>
+    /// Retrieve a user
+    /// </summary>
+    /// <param name="userId"></param>
+    /// <returns>The user with the specified ID</returns>
+    /// <response code="200">Returns the user</response>
+    /// <response code="403">If the requestor is forbidden to retrieve the user</response>
+    /// <response code="404">If the user is not found</response>
+    [HttpGet("{userId}")]    
+    [ActionName(nameof(GetUserAsync))] //prevents asp.net from auto-stripping "Async"
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<UserModel>> GetUserAsync(
         long userId,
         CancellationToken cancellationToken)
     {
@@ -43,7 +54,7 @@ public class UsersController : Controller
             return NotFound("User not found");
         }
 
-        return Ok(new UserModel
+        return new UserModel
         {
             Id = user.Id,
             Created = user.Created,
@@ -51,11 +62,18 @@ public class UsersController : Controller
             DisplayName = user.DisplayName,
             FirstName = user.FirstName,
             LastName = user.LastName
-        });
+        };
     }
 
+    /// <summary>
+    /// Create a user
+    /// </summary>
+    /// <param name="user"></param>
+    /// <returns>The newly created user</returns>
+    /// <response code="201">Returns the new user</response>
     [HttpPost("")]
-    public async Task<IActionResult> CreateUserAsync(
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    public async Task<ActionResult<UserModel>> CreateUserAsync(
         UserModel user,
         CancellationToken cancellationToken)
     {
@@ -78,16 +96,46 @@ public class UsersController : Controller
             user);
     }
 
+    /// <summary>
+    /// Retrieve my info
+    /// </summary>
+    /// <returns>The user's info</returns>
+    /// <response code="200">Returns the user</response>
     [HttpGet("me")]
-    public IActionResult GetMyInfo()
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<UserModel>> GetMyInfo(CancellationToken cancellationToken)
     {
         var userId = User.Identity!.UserId();
 
-        return RedirectToAction(nameof(GetUserAsync), new { userId = userId });
+        var user = await _db
+            .Users
+            .FindAsync(userId, cancellationToken);
+
+        //should never happen
+        if (user == null)
+        {
+            return NotFound();
+        }
+
+        return new UserModel
+        {
+            Id = user.Id,
+            Created = user.Created,
+            Updated = user.Updated,
+            DisplayName = user.DisplayName,
+            FirstName = user.FirstName,
+            LastName = user.LastName
+        };
     }
 
+    /// <summary>
+    /// Retrieve my credentials
+    /// </summary>
+    /// <returns>My credentials</returns>
+    /// <response code="200">Returns the credentials</response>
     [HttpGet("me/credentials")]
-    public IActionResult GetMyCredentials()
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public IAsyncEnumerable<UserCredentialModel> GetMyCredentials()
     {
         var userId = User.Identity!.UserId();
 
@@ -106,10 +154,55 @@ public class UsersController : Controller
             .OrderBy(t => t.Created)
             .AsAsyncEnumerable();
 
-        return Ok(credentials);
+        return credentials;
     }    
 
+    /// <summary>
+    /// Get the credential used to authenticate my current login session
+    /// </summary>
+    /// <returns>The current session's credential</returns>
+    /// <response code="200">Returns the credential</response>
+    /// <response code="404">The logged on user does not have any FIDO credentials setup yet</response>
+    [HttpGet("me/credentials/current")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<UserCredentialModel?>> GetActiveCredentialAsync(
+        CancellationToken cancellationToken)
+    {
+        var credentialIdClaim = (User.Identity as ClaimsIdentity)
+            !.FindFirst("userCredentialId");
+
+        if (long.TryParse(credentialIdClaim?.Value, out long credentialId))
+        {
+            var credential = await _db
+                .UserCredentials
+                .Select(t => new UserCredentialModel
+                {
+                    Id = t.Id,
+                    Created = t.Created,
+                    Updated = t.Updated,
+                    UserId = t.UserId,
+                    DisplayName = t.DisplayName,
+                    AttestationFormatId = t.AttestationFormatId
+                })
+                .SingleOrDefaultAsync(t => t.Id == credentialId, cancellationToken);
+
+            return credential;
+        }
+        else
+        {
+            return NotFound();
+        }
+    }
+
+    /// <summary>
+    /// Delete one of my credentials 
+    /// </summary>
+    /// <response code="204">The credential was successfully deleted</response>
+    /// <response code="404">The credential does not exist</response>
     [HttpDelete("me/credentials/{credentialId}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteMyCredentialAsync(
         long credentialId,
         CancellationToken cancellationToken)
@@ -141,5 +234,5 @@ public class UsersController : Controller
         await _db.SaveChangesAsync(cancellationToken);
 
         return NoContent();
-    }    
+    }
 }

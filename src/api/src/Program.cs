@@ -1,6 +1,5 @@
 namespace WebAuthnTest.Api;
 
-using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Authorization;

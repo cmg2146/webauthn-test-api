@@ -17,7 +17,7 @@ using Fido2NetLib.Objects;
 using WebAuthnTest.Database;
 
 [ApiController]
-[Route("api/webauthn")]
+[Route("webauthn")]
 public class WebAuthnController : Controller
 {
     private IFido2 _fido2;
@@ -36,9 +36,17 @@ public class WebAuthnController : Controller
         return string.Format("{0}{1}", e.Message, e.InnerException != null ? " (" + e.InnerException.Message + ")" : "");
     }
 
+    
+    /// <summary>
+    /// Begin device registration - retrieve credential creation options to start WebAuthn registration ceremony
+    /// </summary>
+    /// <returns>The credential creation options</returns>
+    /// <response code="200">Returns the options</response>
+    /// <response code="500">Problem generating options</response>
     [HttpGet("register")]
-    public async Task<IActionResult> GetCredentialCreationOptionsAsync(
-        AuthenticatorAttachment? authType,
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<CredentialCreateOptions>> GetCredentialCreationOptionsAsync(
         CancellationToken cancellationToken)
     {
         var userId = User.Identity!.UserId();
@@ -47,6 +55,7 @@ public class WebAuthnController : Controller
             .Users
             .SingleOrDefaultAsync(t => t.Id == userId, cancellationToken);
 
+        //should never happen
         if (user == null)
         {
             return Unauthorized();
@@ -57,7 +66,6 @@ public class WebAuthnController : Controller
             var authenticatorSelection = new AuthenticatorSelection
             {
                 UserVerification = UserVerificationRequirement.Required,
-                AuthenticatorAttachment = authType
             };
 
             var exts = new AuthenticationExtensionsClientInputs() 
@@ -89,7 +97,7 @@ public class WebAuthnController : Controller
 
             HttpContext.Session.SetString("webAuthn.credentialCreateOptions", credentialCreationOptions.ToJson());
 
-            return Ok(credentialCreationOptions);
+            return credentialCreationOptions;
         }
         catch (Exception e)
         {
@@ -97,8 +105,17 @@ public class WebAuthnController : Controller
         }
     }
 
+    /// <summary>
+    /// Complete device registration - post authenticator attestation response to complete WebAuthn registration ceremony
+    /// </summary>
+    /// <param name="attestationResponse"></param>
+    /// <returns>The new credential info</returns>
+    /// <response code="200">Returns the new credential info</response>
+    /// <response code="401">There was an issue validating the authenticator attestation response</response>
     [HttpPost("register")]
-    public async Task<IActionResult> CreateCredentialAsync(
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<Fido2.CredentialMakeResult>> CreateCredentialAsync(
         AuthenticatorAttestationRawResponse attestationResponse,
         CancellationToken cancellationToken)
     {
@@ -149,34 +166,20 @@ public class WebAuthnController : Controller
         credentialCreateResult.Result.AttestationCertificate = null;
         credentialCreateResult.Result.AttestationCertificateChain = null;
 
-        return Ok(credentialCreateResult);
+        return credentialCreateResult;
     }
 
-
-    [HttpGet("active-credential")]
-    public async Task<IActionResult> GetActiveCredentialAsync(
-        CancellationToken cancellationToken)
-    {
-        var credentialIdClaim = (User.Identity as ClaimsIdentity)
-            !.FindFirst("userCredentialId");
-
-        if (long.TryParse(credentialIdClaim?.Value, out long credentialId))
-        {
-            var credential = await _db
-                .UserCredentials
-                .SingleOrDefaultAsync(t => t.Id == credentialId, cancellationToken);
-
-            return Ok(credential);
-        }
-        else
-        {
-            return NotFound();
-        }
-    }
-
+    /// <summary>
+    /// Begin sign in - retrieve assertion options for WebAuthn authentication ceremony
+    /// </summary>
+    /// <returns>The assertion options</returns>
+    /// <response code="200">Returns assertion options</response>
+    /// <response code="500">Problem generating options</response>
     [AllowAnonymous]
     [HttpGet("authenticate")]
-    public IActionResult GetCredentialRequestOptions()
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public ActionResult<AssertionOptions> GetCredentialRequestOptions()
     {
         try
         {
@@ -193,7 +196,7 @@ public class WebAuthnController : Controller
 
             HttpContext.Session.SetString("webAuthn.credentialAssertionOptions", credentialAssertionOptions.ToJson());
 
-            return Ok(credentialAssertionOptions);
+            return credentialAssertionOptions;
         }
 
         catch (Exception e)
@@ -202,8 +205,17 @@ public class WebAuthnController : Controller
         }
     }
 
+    /// <summary>
+    /// Complete sign in - post authenticator assertion response to complete WebAuthn authentication ceremony
+    /// </summary>
+    /// <param name="assertionResponse"></param>
+    /// <returns>Signs the user in by issuing an authentication cookie</returns>
+    /// <response code="200">Successful sign in</response>
+    /// <response code="401">There was an issue validating the authenticator assertion response</response>
     [AllowAnonymous]
     [HttpPost("authenticate")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> AuthenticateCredentialAsync(
         AuthenticatorAssertionRawResponse assertionResponse,
         CancellationToken cancellationToken)
@@ -273,8 +285,15 @@ public class WebAuthnController : Controller
         return SignIn(new ClaimsPrincipal(identity), CookieAuthenticationDefaults.AuthenticationScheme);
     }
 
+    /// <summary>
+    /// Register new user and signs the new user in
+    /// </summary>
+    /// <param name="user"></param>
+    /// <returns>Signs the new user in by issuing an authentication cookie</returns>
+    /// <response code="200">Successful user registration</response>
     [AllowAnonymous]
     [HttpPost("register-user")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> CreateAccountAsync(UserModel user)
     {
         var userToAdd = new User
@@ -298,8 +317,13 @@ public class WebAuthnController : Controller
         return SignIn(new ClaimsPrincipal(identity), CookieAuthenticationDefaults.AuthenticationScheme);        
     }
 
+    /// <summary>
+    /// Sign out the current user
+    /// </summary>
+    /// <returns>Signs out the user by clearing the authentication cookie</returns>
+    /// <response code="200">Successful logout</response>
     [HttpPost("logout")]
-    public IActionResult Logout()
+    public SignOutResult Logout()
     {
         return SignOut(CookieAuthenticationDefaults.AuthenticationScheme);
     }    
