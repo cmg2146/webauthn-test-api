@@ -1,5 +1,6 @@
 namespace WebAuthnTest.Api;
 
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Authorization;
@@ -12,7 +13,19 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        var frontendAppUri = new Uri(Environment.GetEnvironmentVariable("WEB_URL")!);
+        var frontendAppOrigin = $"{frontendAppUri.Scheme}://{frontendAppUri.Authority}";
+        var frontendAppHost = frontendAppUri.Host;
+        
         var builder = WebApplication.CreateBuilder(args);
+
+        //Azure App Service already does host filtering, but it doesnt hurt to do it in the app too.
+        //The API is designed to work behind the frontend proxy, so we only need to allow the frontend host.
+        builder.Services.AddHostFiltering(options =>
+        {
+            options.AllowEmptyHosts = true;
+            options.AllowedHosts = new List<string> { frontendAppHost };
+        });
 
         // Add services to the container.
         builder.Services.AddDbContext<WebAuthnTestDbContext>(
@@ -37,14 +50,18 @@ public class Program
         {
             options.AddDefaultPolicy(policy =>
             {
-                policy.WithOrigins(Environment.GetEnvironmentVariable("WEB_URL")!);
+                policy.WithOrigins(frontendAppOrigin);
             });
         });
 
         builder.Services.AddControllers();
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen();
+        builder.Services.AddSwaggerGen(options =>
+        {
+            var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+            options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
+        });
 
         builder.Services
             .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -91,16 +108,16 @@ public class Program
 
         builder.Services.AddFido2(options =>
         {
-            var appUrl = Environment.GetEnvironmentVariable("WEB_URL")!;
-
-            options.ServerDomain = new Uri(appUrl).Host;
+            options.ServerDomain = frontendAppHost;
             options.ServerName = "WebAuthn Test";
-            options.Origins = new HashSet<string>(Enumerable.Repeat(appUrl, 1));
+            options.Origins = new HashSet<string>(Enumerable.Repeat(frontendAppOrigin, 1));
             options.TimestampDriftTolerance = 100;
         });
 
         var app = builder.Build();
 
+        app.UseHostFiltering();
+        
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {
