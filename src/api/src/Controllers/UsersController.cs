@@ -25,10 +25,9 @@ public class UsersController : Controller
     /// <summary>
     /// Retrieve a user
     /// </summary>
-    /// <param name="userId"></param>
     /// <returns>The user with the specified ID</returns>
     /// <response code="200">Returns the user</response>
-    /// <response code="403">If the requestor is forbidden to retrieve the user</response>
+    /// <response code="403">If the requestor is forbidden from retrieving the user</response>
     /// <response code="404">If the user is not found</response>
     [HttpGet("{userId}")]    
     [ActionName(nameof(GetUserAsync))] //prevents asp.net from auto-stripping "Async"
@@ -68,7 +67,6 @@ public class UsersController : Controller
     /// <summary>
     /// Create a user
     /// </summary>
-    /// <param name="user"></param>
     /// <returns>The newly created user</returns>
     /// <response code="201">Returns the new user</response>
     [HttpPost("")]

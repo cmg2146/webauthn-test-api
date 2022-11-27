@@ -18,6 +18,7 @@ using WebAuthnTest.Database;
 
 [ApiController]
 [Route("webauthn")]
+[Produces("application/json")]
 public class WebAuthnController : Controller
 {
     private IFido2 _fido2;
@@ -108,7 +109,6 @@ public class WebAuthnController : Controller
     /// <summary>
     /// Complete device registration - post authenticator attestation response to complete WebAuthn registration ceremony
     /// </summary>
-    /// <param name="attestationResponse"></param>
     /// <returns>The new credential info</returns>
     /// <response code="200">Returns the new credential info</response>
     /// <response code="401">There was an issue validating the authenticator attestation response</response>
@@ -170,7 +170,7 @@ public class WebAuthnController : Controller
     }
 
     /// <summary>
-    /// Begin sign in - retrieve assertion options for WebAuthn authentication ceremony
+    /// Begin sign in - retrieve assertion options to start WebAuthn authentication ceremony
     /// </summary>
     /// <returns>The assertion options</returns>
     /// <response code="200">Returns assertion options</response>
@@ -208,7 +208,6 @@ public class WebAuthnController : Controller
     /// <summary>
     /// Complete sign in - post authenticator assertion response to complete WebAuthn authentication ceremony
     /// </summary>
-    /// <param name="assertionResponse"></param>
     /// <returns>Signs the user in by issuing an authentication cookie</returns>
     /// <response code="200">Successful sign in</response>
     /// <response code="401">There was an issue validating the authenticator assertion response</response>
