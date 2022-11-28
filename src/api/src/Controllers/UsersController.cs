@@ -47,7 +47,6 @@ public class UsersController : Controller
             .Users
             .SingleOrDefaultAsync(t => t.Id == userId, cancellationToken);
 
-        //should never happen
         if (user == null)
         {
             return NotFound("User not found");
@@ -92,6 +91,43 @@ public class UsersController : Controller
             nameof(GetUserAsync),
             new { userId = user.Id },
             user);
+    }
+
+    /// <summary>
+    /// Update a user
+    /// </summary>
+    /// <returns>The updated user</returns>
+    /// <response code="200">Returns the user</response>
+    /// <response code="403">If the requestor is forbidden from updating the user</response>
+    [HttpPut("{userId}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<UserModel>> UpdateUserAsync(
+        long userId,
+        UserModel user,
+        CancellationToken cancellationToken)
+    {
+        if (User.Identity!.UserId() != userId)
+        {
+            return Forbid();
+        }
+        
+        var userToUpdate = new User
+        {
+            Id = userId,
+            DisplayName = user.DisplayName,
+            FirstName = user.FirstName,
+            LastName = user.LastName
+        };
+
+        var entry = _db.Users.Update(userToUpdate);
+        await _db.SaveChangesAsync(cancellationToken);
+        
+        user.Id = entry.Entity.Id;
+        user.Created = entry.Entity.Created;
+        user.Updated = entry.Entity.Updated;
+
+        return user;
     }
 
     /// <summary>

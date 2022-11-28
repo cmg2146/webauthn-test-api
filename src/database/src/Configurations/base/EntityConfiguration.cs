@@ -2,8 +2,7 @@ namespace WebAuthnTest.Database;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Microsoft.EntityFrameworkCore.ValueGeneration;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 public class EntityConfiguration<TEntity> : IEntityTypeConfiguration<TEntity> where TEntity : Entity
 {
@@ -11,18 +10,7 @@ public class EntityConfiguration<TEntity> : IEntityTypeConfiguration<TEntity> wh
     {
         builder
             .Property(t => t.Created)
-            .ValueGeneratedOnAdd()
-            .HasValueGenerator<UtcTimeRightNowGenerator>();
-
-        builder
-            .Property(t => t.Updated)
-            .ValueGeneratedOnUpdate()
-            .HasValueGenerator<UtcTimeRightNowGenerator>();
+            .Metadata
+            .SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
     }
-
-    public class UtcTimeRightNowGenerator : ValueGenerator<DateTime>
-    {
-        public override DateTime Next(EntityEntry entry) => DateTime.UtcNow;
-        public override bool GeneratesTemporaryValues { get; } = false;
-    }    
 }

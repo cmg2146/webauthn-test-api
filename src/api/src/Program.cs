@@ -13,9 +13,9 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        var frontendAppUri = new Uri(Environment.GetEnvironmentVariable("WEB_URL")!);
-        var frontendAppOrigin = $"{frontendAppUri.Scheme}://{frontendAppUri.Authority}";
-        var frontendAppHost = frontendAppUri.Host;
+        //these are lambda functions to prevent exceptions when using ef tools during development
+        Func<Uri> frontendAppUri = () => new Uri(Environment.GetEnvironmentVariable("WEB_URL")!);
+        Func<string> frontendAppOrigin = () => $"{frontendAppUri().Scheme}://{frontendAppUri().Authority}";
         
         var builder = WebApplication.CreateBuilder(args);
 
@@ -24,7 +24,7 @@ public class Program
         builder.Services.AddHostFiltering(options =>
         {
             options.AllowEmptyHosts = true;
-            options.AllowedHosts = new List<string> { frontendAppHost };
+            options.AllowedHosts = new List<string> { frontendAppUri().Host };
         });
 
         // Add services to the container.
@@ -50,7 +50,7 @@ public class Program
         {
             options.AddDefaultPolicy(policy =>
             {
-                policy.WithOrigins(frontendAppOrigin);
+                policy.WithOrigins(frontendAppOrigin());
             });
         });
 
@@ -108,9 +108,9 @@ public class Program
 
         builder.Services.AddFido2(options =>
         {
-            options.ServerDomain = frontendAppHost;
+            options.ServerDomain = frontendAppUri().Host;
             options.ServerName = "WebAuthn Test";
-            options.Origins = new HashSet<string>(Enumerable.Repeat(frontendAppOrigin, 1));
+            options.Origins = new HashSet<string>(Enumerable.Repeat(frontendAppOrigin(), 1));
             options.TimestampDriftTolerance = 100;
         });
 
