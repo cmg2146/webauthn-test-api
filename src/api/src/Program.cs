@@ -19,14 +19,6 @@ public class Program
         
         var builder = WebApplication.CreateBuilder(args);
 
-        //Azure App Service already does host filtering, but it doesnt hurt to do it in the app too.
-        //The API is designed to work behind the frontend proxy, so we only need to allow the frontend host.
-        builder.Services.AddHostFiltering(options =>
-        {
-            options.AllowEmptyHosts = true;
-            options.AllowedHosts = new List<string> { frontendAppUri().Host };
-        });
-
         // Add services to the container.
         builder.Services.AddDbContext<WebAuthnTestDbContext>(
             options => options
@@ -115,8 +107,6 @@ public class Program
         });
 
         var app = builder.Build();
-
-        app.UseHostFiltering();
         
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
