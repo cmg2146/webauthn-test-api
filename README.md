@@ -50,6 +50,9 @@ To run any dotnet CLI command, you will need version 6.0.x of the .NET SDK insta
 [here](https://dotnet.microsoft.com/en-us/download/dotnet/6.0).
 
 * TODO: Security Keys currently not working
+* TODO: Change database system admin to another user and set app service identity permissions to minimum required on database only
+* TODO: Upgrade key vault keys to Premium HSM Keys
+* TODO: Populate app settings in app build pipeline rather than in bicep
 * TODO: Setup <span>ASP.</span>NET core debugging w/docker
 
 
