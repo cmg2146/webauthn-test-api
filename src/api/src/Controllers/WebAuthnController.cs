@@ -67,6 +67,7 @@ public class WebAuthnController : Controller
             var authenticatorSelection = new AuthenticatorSelection
             {
                 UserVerification = UserVerificationRequirement.Required,
+                RequireResidentKey = true
             };
 
             var exts = new AuthenticationExtensionsClientInputs() 
