@@ -231,6 +231,7 @@ public class WebAuthnController : Controller
 
         var credential = await _db
             .UserCredentials
+            .AsTracking()
             .SingleOrDefaultAsync(t =>
                 t.UserId == userId && t.CredentialId == assertionResponse.Id,
                 cancellationToken);
@@ -256,8 +257,7 @@ public class WebAuthnController : Controller
                     cancellationToken: cancellationToken);
 
             // update the counter
-            credential.SignatureCounter = assertionVerificationResult.Counter;
-            _db.Update(credential);           
+            credential.SignatureCounter = assertionVerificationResult.Counter;          
             await _db.SaveChangesAsync(cancellationToken);
         }
         catch (Exception e)

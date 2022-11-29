@@ -86,6 +86,7 @@ public class UsersController : Controller
 
         user.Id = entry.Entity.Id;
         user.Created = entry.Entity.Created;
+        user.Updated = entry.Entity.Updated;
 
         return CreatedAtAction(
             nameof(GetUserAsync),
@@ -99,9 +100,11 @@ public class UsersController : Controller
     /// <returns>The updated user</returns>
     /// <response code="200">Returns the user</response>
     /// <response code="403">If the requestor is forbidden from updating the user</response>
+    /// <response code="404">If the user is not found</response>
     [HttpPut("{userId}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<UserModel>> UpdateUserAsync(
         long userId,
         UserModel user,
@@ -112,20 +115,25 @@ public class UsersController : Controller
             return Forbid();
         }
         
-        var userToUpdate = new User
-        {
-            Id = userId,
-            DisplayName = user.DisplayName,
-            FirstName = user.FirstName,
-            LastName = user.LastName
-        };
+        var updatedUser = await _db
+            .Users
+            .AsTracking()
+            .SingleOrDefaultAsync(t => t.Id == userId, cancellationToken);
 
-        var entry = _db.Users.Update(userToUpdate);
-        await _db.SaveChangesAsync(cancellationToken);
+        if (updatedUser == null)
+        {
+            return NotFound();
+        }
         
-        user.Id = entry.Entity.Id;
-        user.Created = entry.Entity.Created;
-        user.Updated = entry.Entity.Updated;
+        updatedUser.DisplayName = user.DisplayName;
+        updatedUser.FirstName = user.FirstName;
+        updatedUser.LastName = user.LastName;       
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+        user.Id = userId;
+        user.Created = updatedUser.Created;
+        user.Updated = updatedUser.Updated;
 
         return user;
     }
