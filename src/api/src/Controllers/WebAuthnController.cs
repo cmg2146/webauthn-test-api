@@ -22,15 +22,18 @@ using WebAuthnTest.Database;
 [Produces("application/json")]
 public class WebAuthnController : Controller
 {
-    private IFido2 _fido2;
-    private WebAuthnTestDbContext _db;
+    private readonly IFido2 _fido2;
+    private readonly IMetadataService _fido2Mds;
+    private readonly WebAuthnTestDbContext _db;
 
     public WebAuthnController(
         WebAuthnTestDbContext db,
-        IFido2 fido2)
+        IFido2 fido2,
+        IMetadataService fido2Mds)
     {
         _db = db;
         _fido2 = fido2;
+        _fido2Mds = fido2Mds;
     }
 
     private string FormatException(Exception e)
@@ -96,7 +99,7 @@ public class WebAuthnController : Controller
                     fido2User,
                     existingCredentials,
                     authenticatorSelection,
-                    AttestationConveyancePreference.Indirect,
+                    AttestationConveyancePreference.Direct,
                     exts);
 
             HttpContext.Session.SetString("webAuthn.credentialCreateOptions", credentialCreationOptions.ToJson());
@@ -144,16 +147,22 @@ public class WebAuthnController : Controller
             return Unauthorized(FormatException(e));
         }
 
+        var aaGuid = credentialCreateResult.Result!.Aaguid;
+        var authenticatorMetadata = await _fido2Mds.GetEntryAsync(aaGuid, cancellationToken);
+        var authenticatorDescription = authenticatorMetadata
+            ?.MetadataStatement
+            .Description
+            .Truncate(255);
+
         //TODO: Delete existing credential if it has same Id?
         var userCredentialToAdd = new UserCredential
         {
             UserId = userId,
-            CredentialId = credentialCreateResult.Result!.CredentialId,
+            CredentialId = credentialCreateResult.Result.CredentialId,
             PublicKey = credentialCreateResult.Result.PublicKey,
             AttestationFormatId = credentialCreateResult.Result.CredType,
-            AaGuid = credentialCreateResult.Result.Aaguid,
-            //TODO: Use a better display name
-            DisplayName = credentialCreateResult.Result.CredType,
+            AaGuid = aaGuid,
+            DisplayName = authenticatorDescription ?? credentialCreateResult.Result.CredType,
             SignatureCounter = credentialCreateResult.Result.Counter
         };
 

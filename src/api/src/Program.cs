@@ -84,9 +84,11 @@ public class Program
                 .Build();
         });
 
-        //session used for WebAuthn Attestation and Assertion options
+        //caches used by Session and Fido2 middleware
         builder.Services.AddMemoryCache();
+        //TODO: This isnt a real distributed cache. Replace with something like Redis or SQL
         builder.Services.AddDistributedMemoryCache();
+
         builder.Services.AddSession(options =>
         {
             options.IdleTimeout = TimeSpan.FromMinutes(5);
@@ -98,13 +100,20 @@ public class Program
             options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         });
 
-        builder.Services.AddFido2(options =>
-        {
-            options.ServerDomain = frontendAppUri().Host;
-            options.ServerName = "WebAuthn Test";
-            options.Origins = new HashSet<string>(Enumerable.Repeat(frontendAppOrigin(), 1));
-            options.TimestampDriftTolerance = 100;
-        });
+        builder.Services
+            .AddFido2(options =>
+            {
+                options.ServerDomain = frontendAppUri().Host;
+                options.ServerName = "WebAuthn Test";
+                options.Origins = new HashSet<string>(Enumerable.Repeat(frontendAppOrigin(), 1));
+                options.TimestampDriftTolerance = 100;
+            })
+            .AddCachedMetadataService(options =>
+            {
+                //TODO: because the metadata service relies on the "less than ideal" memory cache above
+                //there could be some performance degradation on startup.
+                options.AddFidoMetadataRepository();
+            });
 
         var app = builder.Build();
         
