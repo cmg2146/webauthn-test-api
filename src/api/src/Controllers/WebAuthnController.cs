@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Buffers.Binary;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -37,7 +38,6 @@ public class WebAuthnController : Controller
         return string.Format("{0}{1}", e.Message, e.InnerException != null ? " (" + e.InnerException.Message + ")" : "");
     }
 
-    
     /// <summary>
     /// Begin device registration - retrieve credential creation options to start WebAuthn registration ceremony
     /// </summary>
@@ -78,10 +78,12 @@ public class WebAuthnController : Controller
 
             var fido2User = new Fido2User
             {
+                Id = BitConverter.GetBytes((long)0),
                 Name = user.DisplayName,
-                DisplayName = user.DisplayName,
-                Id = BitConverter.GetBytes(user.Id)
+                DisplayName = $"{user.FirstName} {user.LastName}"
             };
+
+            BinaryPrimitives.WriteInt64BigEndian(fido2User.Id, user.Id);
 
             var existingCredentials = await _db
                 .UserCredentials
@@ -150,6 +152,7 @@ public class WebAuthnController : Controller
             PublicKey = credentialCreateResult.Result.PublicKey,
             AttestationFormatId = credentialCreateResult.Result.CredType,
             AaGuid = credentialCreateResult.Result.Aaguid,
+            //TODO: Use a better display name
             DisplayName = credentialCreateResult.Result.CredType,
             SignatureCounter = credentialCreateResult.Result.Counter
         };
@@ -220,7 +223,8 @@ public class WebAuthnController : Controller
         AuthenticatorAssertionRawResponse assertionResponse,
         CancellationToken cancellationToken)
     {
-        var userId = BitConverter.ToInt64(assertionResponse.Response.UserHandle);
+        var userId = BinaryPrimitives.ReadInt64BigEndian(assertionResponse.Response.UserHandle);
+
         var user = await _db
             .Users
             .SingleOrDefaultAsync(t => t.Id == userId, cancellationToken);
