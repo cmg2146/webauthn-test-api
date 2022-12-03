@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <NoDefaultLaunchSettingsFile>True</NoDefaultLaunchSettingsFile>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- Disable warnings for missing XML Comments -->
     <NoWarn>$(NoWarn);1591</NoWarn>

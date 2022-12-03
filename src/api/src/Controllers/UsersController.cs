@@ -4,9 +4,6 @@ using System.Linq;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authorization;
 using WebAuthnTest.Database;
 
 [ApiController]
@@ -14,7 +11,7 @@ using WebAuthnTest.Database;
 [Produces("application/json")]
 public class UsersController : Controller
 {
-    private WebAuthnTestDbContext _db;
+    private readonly WebAuthnTestDbContext _db;
 
     public UsersController(
         WebAuthnTestDbContext db)
@@ -29,7 +26,7 @@ public class UsersController : Controller
     /// <response code="200">Returns the user</response>
     /// <response code="403">If the requestor is forbidden from retrieving the user</response>
     /// <response code="404">If the user is not found</response>
-    [HttpGet("{userId}")]    
+    [HttpGet("{userId}")]
     [ActionName(nameof(GetUserAsync))] //prevents asp.net from auto-stripping "Async"
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -114,7 +111,7 @@ public class UsersController : Controller
         {
             return Forbid();
         }
-        
+
         var updatedUser = await _db
             .Users
             .AsTracking()
@@ -124,10 +121,10 @@ public class UsersController : Controller
         {
             return NotFound();
         }
-        
+
         updatedUser.DisplayName = user.DisplayName;
         updatedUser.FirstName = user.FirstName;
-        updatedUser.LastName = user.LastName;       
+        updatedUser.LastName = user.LastName;
 
         await _db.SaveChangesAsync(cancellationToken);
 
@@ -197,7 +194,7 @@ public class UsersController : Controller
             .AsAsyncEnumerable();
 
         return credentials;
-    }    
+    }
 
     /// <summary>
     /// Get the credential used to authenticate my current login session
@@ -238,7 +235,7 @@ public class UsersController : Controller
     }
 
     /// <summary>
-    /// Delete one of my credentials 
+    /// Delete one of my credentials
     /// </summary>
     /// <response code="204">The credential was successfully deleted</response>
     /// <response code="404">The credential does not exist</response>

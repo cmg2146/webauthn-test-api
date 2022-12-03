@@ -11,7 +11,7 @@ public class UserCredentialConfiguration : EntityConfiguration<UserCredential>
         base.Configure(builder);
 
         builder.ToTable("UserCredential");
-        
+
         builder.HasAlternateKey(t => t.CredentialIdHash);
 
         builder

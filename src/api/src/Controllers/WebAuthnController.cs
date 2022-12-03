@@ -36,9 +36,11 @@ public class WebAuthnController : Controller
         _fido2Mds = fido2Mds;
     }
 
-    private string FormatException(Exception e)
+    private static string FormatException(Exception e)
     {
-        return string.Format("{0}{1}", e.Message, e.InnerException != null ? " (" + e.InnerException.Message + ")" : "");
+        return e.InnerException?.Message == null
+            ? e.Message
+            : $"{e.Message} ({e.InnerException.Message})";
     }
 
     /// <summary>
@@ -73,10 +75,10 @@ public class WebAuthnController : Controller
                 RequireResidentKey = true
             };
 
-            var exts = new AuthenticationExtensionsClientInputs() 
-            { 
-                Extensions = true, 
-                UserVerificationMethod = true, 
+            var exts = new AuthenticationExtensionsClientInputs()
+            {
+                Extensions = true,
+                UserVerificationMethod = true,
             };
 
             var fido2User = new Fido2User
@@ -92,8 +94,8 @@ public class WebAuthnController : Controller
                 .UserCredentials
                 .Where(t => t.UserId == userId)
                 .Select(t => new PublicKeyCredentialDescriptor(t.CredentialId))
-                .ToListAsync(cancellationToken);               
-            
+                .ToListAsync(cancellationToken);
+
             var credentialCreationOptions = _fido2
                 .RequestNewCredential(
                     fido2User,
@@ -197,8 +199,8 @@ public class WebAuthnController : Controller
         try
         {
             var exts = new AuthenticationExtensionsClientInputs()
-            { 
-                UserVerificationMethod = true 
+            {
+                UserVerificationMethod = true
             };
 
             var credentialAssertionOptions = _fido2.GetAssertionOptions(
@@ -271,7 +273,7 @@ public class WebAuthnController : Controller
                     cancellationToken: cancellationToken);
 
             // update the counter
-            credential.SignatureCounter = assertionVerificationResult.Counter;          
+            credential.SignatureCounter = assertionVerificationResult.Counter;
             await _db.SaveChangesAsync(cancellationToken);
         }
         catch (Exception e)
@@ -282,7 +284,7 @@ public class WebAuthnController : Controller
         var identity = new ClaimsIdentity(CookieAuthenticationDefaults.AuthenticationScheme);
         identity.AddClaim(new Claim(
             identity.NameClaimType,
-            userId.ToString(),
+            $"{userId}",
             ClaimValueTypes.UInteger64
         ));
         identity.AddClaim(new Claim(
@@ -291,10 +293,10 @@ public class WebAuthnController : Controller
         ));
         identity.AddClaim(new Claim(
             "userCredentialId",
-            credential.Id.ToString(),
+            $"{credential.Id}",
             ClaimValueTypes.UInteger64
         ));
-                
+
         return SignIn(new ClaimsPrincipal(identity), CookieAuthenticationDefaults.AuthenticationScheme);
     }
 
@@ -322,12 +324,12 @@ public class WebAuthnController : Controller
         var identity = new ClaimsIdentity(CookieAuthenticationDefaults.AuthenticationScheme);
         identity.AddClaim(new Claim(
             identity.NameClaimType,
-            entry.Entity.Id.ToString(),
+            $"{entry.Entity.Id}",
             ClaimValueTypes.UInteger64
         ));
 
         //go ahead and sign the user although no credentials registered yet
-        return SignIn(new ClaimsPrincipal(identity), CookieAuthenticationDefaults.AuthenticationScheme);        
+        return SignIn(new ClaimsPrincipal(identity), CookieAuthenticationDefaults.AuthenticationScheme);
     }
 
     /// <summary>
@@ -339,5 +341,5 @@ public class WebAuthnController : Controller
     public SignOutResult Logout()
     {
         return SignOut(CookieAuthenticationDefaults.AuthenticationScheme);
-    }    
+    }
 }

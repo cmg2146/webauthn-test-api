@@ -16,7 +16,7 @@ public class Program
         //these are lambda functions to prevent exceptions when using ef tools during development
         Func<Uri> frontendAppUri = () => new Uri(Environment.GetEnvironmentVariable("WEB_URL")!);
         Func<string> frontendAppOrigin = () => $"{frontendAppUri().Scheme}://{frontendAppUri().Authority}";
-        
+
         var builder = WebApplication.CreateBuilder(args);
 
         // Add services to the container.
@@ -71,7 +71,7 @@ public class Program
                     //to loginPath
                     context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                     return Task.CompletedTask;
-                };                
+                };
                 //Note: This is a session cookie, would need something
                 //a bit more secure/robust for a real application
             });
@@ -116,7 +116,7 @@ public class Program
             });
 
         var app = builder.Build();
-        
+
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {
@@ -126,6 +126,8 @@ public class Program
 
         if (!app.Environment.IsDevelopment())
         {
+            //TODO: For an API, we dont really need this because there should only be an HTTPS binding.
+            //Try to remove HTTP binding from Azure App Service.
             app.UseHttpsRedirection();
             app.UseHsts();
         }
@@ -133,12 +135,12 @@ public class Program
         app.UseSession();
 
         app.UseCors();
-        
+
         app.UseAuthentication();
         app.UseAuthorization();
-        
+
         app.MapControllers();
-        
+
         using (var serviceScope = app.Services.CreateScope())
         {
             serviceScope
