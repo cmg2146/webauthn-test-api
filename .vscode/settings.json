@@ -9,5 +9,6 @@
     "*.tasks": "xml"
   },
   "omnisharp.enableRoslynAnalyzers": true,
-  "omnisharp.enableEditorConfigSupport": true
+  "omnisharp.enableEditorConfigSupport": true,
+  "csharp.suppressBuildAssetsNotification": true
 }
