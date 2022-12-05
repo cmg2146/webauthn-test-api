@@ -281,23 +281,7 @@ public class WebAuthnController : Controller
             return Unauthorized(FormatException(e));
         }
 
-        var identity = new ClaimsIdentity(CookieAuthenticationDefaults.AuthenticationScheme);
-        identity.AddClaim(new Claim(
-            identity.NameClaimType,
-            $"{userId}",
-            ClaimValueTypes.UInteger64
-        ));
-        identity.AddClaim(new Claim(
-            ClaimTypes.AuthenticationMethod,
-            "webauthn"
-        ));
-        identity.AddClaim(new Claim(
-            "userCredentialId",
-            $"{credential.Id}",
-            ClaimValueTypes.UInteger64
-        ));
-
-        return SignIn(new ClaimsPrincipal(identity), CookieAuthenticationDefaults.AuthenticationScheme);
+        return this.SignInWithUserCredential(credential);
     }
 
     /// <summary>
