@@ -209,7 +209,7 @@ public class UsersController : Controller
         CancellationToken cancellationToken)
     {
         var credentialIdClaim = (User.Identity as ClaimsIdentity)
-            !.FindFirst(WebAuthnClaimConstants.USER_CREDENTIAL_ID_CLAIM_TYPE);
+            !.FindFirst(WebAuthnClaimConstants.UserCredentialIdClaimType);
 
         if (long.TryParse(credentialIdClaim?.Value, out long credentialId))
         {

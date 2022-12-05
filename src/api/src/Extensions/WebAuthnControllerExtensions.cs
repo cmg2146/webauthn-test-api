@@ -21,11 +21,11 @@ public static class WebAuthnControllerExtensions
 
         identity.AddClaim(new Claim(
             ClaimTypes.AuthenticationMethod,
-            WebAuthnClaimConstants.WEBAUTHN_AUTHENTICATION_METHOD
+            WebAuthnClaimConstants.WebAuthnAuthenticationMethod
         ));
 
         identity.AddClaim(new Claim(
-            WebAuthnClaimConstants.USER_CREDENTIAL_ID_CLAIM_TYPE,
+            WebAuthnClaimConstants.UserCredentialIdClaimType,
             $"{credential.Id}",
             ClaimValueTypes.UInteger64
         ));
