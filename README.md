@@ -49,12 +49,9 @@ The app has been configured to update the database automatically (apply all pend
 To run any dotnet CLI command, you will need version 6.0.x of the .NET SDK installed on your machine. You can get it
 [here](https://dotnet.microsoft.com/en-us/download/dotnet/6.0).
 
-* TODO: FIDO metadata implementation is slow
-* TODO: Disable HTTP binding on API app service
 * TODO: Migrations applied at runtime will not work with multiple instances
 * TODO: Change database system admin to another user and set app service identity permissions to minimum required on database only
-* TODO: Upgrade key vault keys to Premium HSM Keys
-* TODO: Populate app settings in app build pipeline rather than in bicep
+* TODO: Remove app settings from bicep
 * TODO: Setup <span>ASP.</span>NET core debugging w/docker
 
 
