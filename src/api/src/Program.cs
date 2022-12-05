@@ -14,8 +14,8 @@ public class Program
     public static void Main(string[] args)
     {
         //these are lambda functions to prevent exceptions when using ef tools during development
-        Func<Uri> frontendAppUri = () => new Uri(Environment.GetEnvironmentVariable("WEB_URL")!);
-        Func<string> frontendAppOrigin = () => $"{frontendAppUri().Scheme}://{frontendAppUri().Authority}";
+        static Uri frontendAppUri() => new(Environment.GetEnvironmentVariable("WEB_URL")!);
+        static string frontendAppOrigin() => $"{frontendAppUri().Scheme}://{frontendAppUri().Authority}";
 
         var builder = WebApplication.CreateBuilder(args);
 
@@ -86,8 +86,12 @@ public class Program
 
         //caches used by Session and Fido2 middleware
         builder.Services.AddMemoryCache();
-        //TODO: This isnt a real distributed cache. Replace with something like Redis or SQL
-        builder.Services.AddDistributedMemoryCache();
+        builder.Services.AddDistributedSqlServerCache(options =>
+        {
+            options.ConnectionString = builder.Configuration.GetConnectionString("Default");
+            options.TableName = DistributedCacheEntryConstants.TableName;
+            options.SchemaName = DistributedCacheEntryConstants.SchemaName;
+        });
 
         builder.Services.AddSession(options =>
         {

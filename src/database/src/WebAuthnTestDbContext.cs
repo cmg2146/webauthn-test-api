@@ -16,6 +16,7 @@ public class WebAuthnTestDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<User> Users { get; set; } = default!;
     public DbSet<UserCredential> UserCredentials { get; set; } = default!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = default!;
+    public DbSet<DistributedCacheEntry> DistributedCacheEntries { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
