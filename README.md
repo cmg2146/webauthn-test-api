@@ -5,12 +5,12 @@ complete description of the application.
 This web API is a simple <span>ASP.</span>NET Core 6.0 app which communicates with a SQL Server database using
 Entity Framework Core.
 
-The <span>ASP.</span>NET Core app was created with the following dotnet CLI command:
+The app was created with the following dotnet CLI command:
 
  ```dotnet new webapi --exclude-launch-settings --framework net6.0 --use-program-main```
 
 ## Build
-In development, the api can be run using Docker Linux containers by executing the following command at the repo root:
+In development, the API can be run using Docker Linux containers by executing the following command at the repo root:
 
 ```docker-compose up```
 
@@ -31,20 +31,20 @@ be tweaked as needed. Some other environment variables, not listed above, are re
 have also been set in the docker-compose file.
 
 ## Database Migrations
-You will need to add migrations whenever making schema changes to the database. To add a migration, run the following command
+Migrations must be added whenever making schema changes to the database. To add a migration, run the following command
 at the repo root:
 
 ```dotnet ef migrations add NameOfNewMigration --project ./src/database --startup-project ./src/api -- ConnectionStrings:Default="Data Source=Dummy String"```
 
-Due to the way the EF Core CLI tool acquires the DbContext, you will need to pass a connection string to any command or the
-command will fail. Fortunately, the add migration command doesn't need a database, so you can pass a bogus string.
+Due to the way the EF Core CLI tool acquires the DbContext, a connection string must be passed to any command or the
+command will fail. Fortunately, the add migration command doesn't need a database, so a bogus string can be used.
 Other commands might fail without a valid connection string. See the [EF Core Tools](https://learn.microsoft.com/en-us/ef/core/cli/dotnet).
 
 The app has been configured to update the database automatically (apply all pending migrations) at startup.
 
 ## Notes
 
-To run any dotnet CLI command, you will need version 6.0.x of the .NET SDK installed on your machine. You can get it
+To run any dotnet CLI command, version 6.0.x of the .NET SDK must be installed, which can be downloaded
 [here](https://dotnet.microsoft.com/en-us/download/dotnet/6.0).
 
 The following documentation was helpful to setup this project:
