@@ -13,10 +13,10 @@ public class WebAuthnTestDbContext : DbContext, IDataProtectionKeyContext
         ChangeTracker.Tracked += UpdateTimestamps;
     }
 
-    public DbSet<User> Users { get; set; } = default!;
-    public DbSet<UserCredential> UserCredentials { get; set; } = default!;
-    public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = default!;
-    public DbSet<DistributedCacheEntry> DistributedCacheEntries { get; set; } = default!;
+    public DbSet<User> Users { get; set; } = null!;
+    public DbSet<UserCredential> UserCredentials { get; set; } = null!;
+    public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
+    public DbSet<DistributedCacheEntry> DistributedCacheEntries { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
