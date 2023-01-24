@@ -102,7 +102,7 @@ public class UsersController : Controller
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<UserModel>> UpdateUserAsync(
+    public async Task<IActionResult> UpdateUserAsync(
         long userId,
         UserModel user,
         CancellationToken cancellationToken)
@@ -128,11 +128,7 @@ public class UsersController : Controller
 
         await _db.SaveChangesAsync(cancellationToken);
 
-        user.Id = userId;
-        user.Created = updatedUser.Created;
-        user.Updated = updatedUser.Updated;
-
-        return user;
+        return NoContent();
     }
 
     /// <summary>

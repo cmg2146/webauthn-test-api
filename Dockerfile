@@ -11,7 +11,7 @@ WORKDIR /src
 COPY ./src/api ./api
 COPY ./src/database ./database
 WORKDIR /src/api
-RUN ["dotnet", "publish", "-c", "release", "-o", "/app"]
+RUN ["dotnet", "publish", "-c", "Release", "-o", "/app"]
 
 # final stage/image
 FROM mcr.microsoft.com/dotnet/aspnet:6.0-bullseye-slim

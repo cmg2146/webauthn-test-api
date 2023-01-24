@@ -65,13 +65,23 @@ public class Program
                 options.Cookie.HttpOnly = true;
                 options.Cookie.SameSite = SameSiteMode.Strict;
                 options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                options.Events.OnRedirectToAccessDenied = (context) =>
+                {
+                    //dont redirect, default cookie behavior is to redirect
+                    //to accessDeniedPath
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return Task.CompletedTask;
+                };
                 options.Events.OnRedirectToLogin = (context) =>
                 {
                     //dont redirect to login, default cookie behavior is to redirect
+                    //dont redirect, default cookie behavior is to redirect
                     //to loginPath
                     context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                     return Task.CompletedTask;
                 };
+                options.Events.OnRedirectToReturnUrl = (_) => Task.CompletedTask;
+                options.Events.OnRedirectToLogout = (_) => Task.CompletedTask;
                 //Note: This is a session cookie, would need something
                 //a bit more secure/robust for a real application
             });
