@@ -20,7 +20,7 @@ The following environment variables must be configured, at run time, for proper 
 * ASPNETCORE_ENVIRONMENT
   * "Development" or "Production"
 * WEB_URL
-  * The HTTPS URL to the client/front-end app, i.e. https://localhost:10000
+  * The HTTPS URL to the client/frontend app, i.e. https://localhost:10000
 * SQLCONNSTR_DEFAULT
   * The connection string to the SQL Server database
 * AZURE_KEY_VAULT_ID (Production Only)
