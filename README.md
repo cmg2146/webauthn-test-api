@@ -1,6 +1,7 @@
 # WebAuthn Test API
-This repo contains the API for the WebAuthn-Test application. See the `webauthn-test-web` repo for a
-complete description of the application.
+This repo contains the API for the WebAuthn-Test application. See the
+[webauthn-test-web](https://github.com/cmg2146/webauthn-test-web) repo for a complete description of the
+application.
 
 This web API is a simple <span>ASP.</span>NET Core 6.0 app which communicates with a SQL Server database using
 Entity Framework Core.
