@@ -13,7 +13,7 @@ pool:
 
 variables:
 - group: webauthn-test-api_Production
-- group: webauthn-test-api-DeploySettings
+- group: webauthn-test-api_DeploySettings
 - name: tag
   value: $(Build.BuildNumber)
 
