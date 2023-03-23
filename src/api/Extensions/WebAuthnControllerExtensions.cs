@@ -21,7 +21,7 @@ public static class WebAuthnControllerExtensions
 
         identity.AddClaim(new Claim(
             ClaimTypes.AuthenticationMethod,
-            WebAuthnClaimConstants.WebAuthnAuthenticationMethod
+            WebAuthnClaimConstants.AuthenticationMethod
         ));
 
         identity.AddClaim(new Claim(

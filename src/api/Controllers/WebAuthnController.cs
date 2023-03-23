@@ -3,14 +3,12 @@ namespace WebAuthnTest.Api;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Buffers.Binary;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Fido2NetLib;
@@ -25,6 +23,9 @@ public class WebAuthnController : Controller
     private readonly IFido2 _fido2;
     private readonly IMetadataService _fido2Mds;
     private readonly WebAuthnTestDbContext _db;
+
+    private const string ATTESTATION_OPTIONS_SESSION_KEY = "webAuthn.credentialCreateOptions";
+    private const string ASSERTION_OPTIONS_SESSION_KEY = "webAuthn.credentialAssertionOptions";
 
     public WebAuthnController(
         WebAuthnTestDbContext db,
@@ -57,7 +58,7 @@ public class WebAuthnController : Controller
     {
         var userId = User.Identity!.UserId();
 
-        var user  = await _db
+        var user = await _db
             .Users
             .SingleOrDefaultAsync(t => t.Id == userId, cancellationToken);
 
@@ -83,11 +84,12 @@ public class WebAuthnController : Controller
 
             var fido2User = new Fido2User
             {
-                Id = BitConverter.GetBytes((long)0),
+                Id = BitConverter.GetBytes(user.Id),
                 Name = user.DisplayName,
                 DisplayName = $"{user.FirstName} {user.LastName}"
             };
 
+            // this is redundant if we are on a big endian machine
             BinaryPrimitives.WriteInt64BigEndian(fido2User.Id, user.Id);
 
             var existingCredentials = await _db
@@ -96,15 +98,17 @@ public class WebAuthnController : Controller
                 .Select(t => new PublicKeyCredentialDescriptor(t.CredentialId))
                 .ToListAsync(cancellationToken);
 
-            var credentialCreationOptions = _fido2
-                .RequestNewCredential(
-                    fido2User,
-                    existingCredentials,
-                    authenticatorSelection,
-                    AttestationConveyancePreference.Direct,
-                    exts);
+            var credentialCreationOptions = _fido2.RequestNewCredential(
+                fido2User,
+                existingCredentials,
+                authenticatorSelection,
+                AttestationConveyancePreference.Direct,
+                exts);
 
-            HttpContext.Session.SetString("webAuthn.credentialCreateOptions", credentialCreationOptions.ToJson());
+            await HttpContext.Session.SetStringAsync(
+                ATTESTATION_OPTIONS_SESSION_KEY,
+                credentialCreationOptions.ToJson(),
+                cancellationToken);
 
             return credentialCreationOptions;
         }
@@ -133,8 +137,10 @@ public class WebAuthnController : Controller
         try
         {
             //get the credential creation options we originally sent to client
-            var originalCreationOptions = CredentialCreateOptions
-                .FromJson(HttpContext.Session.GetString("webAuthn.credentialCreateOptions"));
+            var optionsString = await HttpContext.Session.GetStringAsync(
+                ATTESTATION_OPTIONS_SESSION_KEY,
+                cancellationToken);
+            var originalCreationOptions = CredentialCreateOptions.FromJson(optionsString);
 
             credentialCreateResult = await _fido2
                 .MakeNewCredentialAsync(
@@ -194,7 +200,9 @@ public class WebAuthnController : Controller
     [HttpGet("authenticate")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public ActionResult<AssertionOptions> GetCredentialRequestOptions()
+    public async Task<ActionResult<AssertionOptions>> GetCredentialRequestOptionsAsync(
+        CancellationToken cancellationToken
+    )
     {
         try
         {
@@ -206,10 +214,12 @@ public class WebAuthnController : Controller
             var credentialAssertionOptions = _fido2.GetAssertionOptions(
                 new List<PublicKeyCredentialDescriptor>(),
                 UserVerificationRequirement.Required,
-                exts
-            );
+                exts);
 
-            HttpContext.Session.SetString("webAuthn.credentialAssertionOptions", credentialAssertionOptions.ToJson());
+            await HttpContext.Session.SetStringAsync(
+                ASSERTION_OPTIONS_SESSION_KEY,
+                credentialAssertionOptions.ToJson(),
+                cancellationToken);
 
             return credentialAssertionOptions;
         }
@@ -260,17 +270,18 @@ public class WebAuthnController : Controller
         try
         {
             // get the assertion options we orignally sent the client
-            var originalRequestOptions = AssertionOptions.FromJson(
-                HttpContext.Session.GetString("webAuthn.credentialAssertionOptions"));
+            var optionsString = await HttpContext.Session.GetStringAsync(
+                ASSERTION_OPTIONS_SESSION_KEY,
+                cancellationToken);
+            var originalRequestOptions = AssertionOptions.FromJson(optionsString);
 
-            var assertionVerificationResult = await _fido2
-                .MakeAssertionAsync(
-                    assertionResponse,
-                    originalRequestOptions,
-                    credential.PublicKey,
-                    credential.SignatureCounter,
-                    async (args, _) => await Task.FromResult(credential.UserId == userId),
-                    cancellationToken: cancellationToken);
+            var assertionVerificationResult = await _fido2.MakeAssertionAsync(
+                assertionResponse,
+                originalRequestOptions,
+                credential.PublicKey,
+                credential.SignatureCounter,
+                async (args, _) => await Task.FromResult(credential.UserId == userId),
+                cancellationToken: cancellationToken);
 
             // update the counter
             credential.SignatureCounter = assertionVerificationResult.Counter;

@@ -6,7 +6,7 @@ public class UserCredential : Entity
     /// <summary>
     /// Credential ID created by the authenticator device
     /// </summary>
-    public byte[] CredentialId { get ; set; } = null!;
+    public byte[] CredentialId { get; set; } = null!;
     /// <summary>
     /// Credential ID Hash. Need the Credential ID to be unique, but it's too big to index, so we
     /// hash it first and index the hash

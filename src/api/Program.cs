@@ -13,7 +13,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        //these are lambda functions to prevent exceptions when using ef tools during development
+        //implemented as lambda functions to prevent exceptions when using ef tools during development
         static Uri frontendAppUri() => new(Environment.GetEnvironmentVariable("WEB_URL")!);
         static string frontendAppOrigin() => $"{frontendAppUri().Scheme}://{frontendAppUri().Authority}";
 
@@ -106,6 +106,7 @@ public class Program
         builder.Services.AddSession(options =>
         {
             options.IdleTimeout = TimeSpan.FromMinutes(5);
+            options.IOTimeout = TimeSpan.FromSeconds(10);
             options.Cookie.Name = "WebAuthnTest-ChallengeCookie";
             options.Cookie.MaxAge = TimeSpan.FromMinutes(5);
             options.Cookie.IsEssential = true;

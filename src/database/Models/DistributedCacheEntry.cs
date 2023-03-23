@@ -10,7 +10,7 @@ public class DistributedCacheEntry
     [Key]
     [Required]
     [MaxLength(900)]
-    public string Id { get ; set; } = default!;
+    public string Id { get; set; } = default!;
     [Required]
     public byte[] Value { get; set; } = default!;
     [Required]
