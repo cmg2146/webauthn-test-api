@@ -4,8 +4,9 @@
 .git
 *.gitignore
 *.gitattributes
-*.config
-*.bin
-*.obj
+.config
+**/bin/
+**/obj/
+**/out/
 README.md
 wait-for-it.sh
