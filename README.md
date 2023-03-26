@@ -41,7 +41,10 @@ Due to the way the EF Core CLI tool acquires the DbContext, a connection string 
 command will fail. Fortunately, the add migration command doesn't need a database, so a bogus string can be used.
 Other commands might fail without a valid connection string. See the [EF Core Tools](https://learn.microsoft.com/en-us/ef/core/cli/dotnet).
 
-The app has been configured to update the database automatically (apply all pending migrations) at startup.
+For development only, the app has been configured to update the database automatically (apply all pending migrations) at startup.
+For production, the database can be migrated using a one-off process by running the following command in the app's execution environment:
+
+`dotnet WebAuthnTest.Api.dll --migrate-database"
 
 ## Notes
 
@@ -56,6 +59,4 @@ The following documentation was helpful to setup this project:
 
 [Sync Container Startup in Docker Compose](https://github.com/vishnubob/wait-for-it)
 
-
-* TODO: Migrations applied at startup/runtime will not work with multiple instances
 * TODO: Setup <span>ASP.</span>NET core debugging w/docker

@@ -13,23 +13,47 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        var builder = WebApplication.CreateBuilder(args);
+        AddServices(builder);
+        var app = builder.Build();
+
+        var hasMigrateDatabaseOption = args.Contains("--migrate-database");
+        if (hasMigrateDatabaseOption || app.Environment.IsDevelopment())
+        {
+            MigrateDatabase(app);
+
+            // the "--migrate-database" option allows a on-off process to migrate the database,
+            // so dont run the app if it's present.
+            if (hasMigrateDatabaseOption)
+            {
+                return;
+            }
+        }
+
+        ConfigureRequestPipeline(app);
+        app.Run();
+    }
+
+    public static void AddServices(WebApplicationBuilder builder)
+    {
         //implemented as lambda functions to prevent exceptions when using ef tools during development
         static Uri frontendAppUri() => new(Environment.GetEnvironmentVariable("WEB_URL")!);
         static string frontendAppOrigin() => $"{frontendAppUri().Scheme}://{frontendAppUri().Authority}";
 
-        var builder = WebApplication.CreateBuilder(args);
-
-        // Add services to the container.
-        builder.Services.AddDbContext<WebAuthnTestDbContext>(
-            options => options
+        // Database
+        builder.Services.AddDbContext<WebAuthnTestDbContext>(options =>
+        {
+            options
                 .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTrackingWithIdentityResolution)
-                .UseSqlServer(builder.Configuration.GetConnectionString("Default"))
-        );
+                .UseSqlServer(builder.Configuration.GetConnectionString("Default"));
+        });
 
+        // ASP.NET Core Data Protection
         var dataProtectionBuilder = builder.Services
             .AddDataProtection()
             .PersistKeysToDbContext<WebAuthnTestDbContext>();
 
+        // encrypt data protection keys in production using key vault
         if (!builder.Environment.IsDevelopment())
         {
             dataProtectionBuilder
@@ -47,7 +71,8 @@ public class Program
         });
 
         builder.Services.AddControllers();
-        // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+
+        // Swagger/OpenAPI docs. Learn more at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen(options =>
         {
@@ -55,6 +80,45 @@ public class Program
             options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
         });
 
+        //caches used by Session and Fido2 middleware
+        builder.Services.AddMemoryCache();
+        builder.Services.AddDistributedSqlServerCache(options =>
+        {
+            options.ConnectionString = builder.Configuration.GetConnectionString("Default");
+            options.TableName = DistributedCacheEntryConstants.TableName;
+            options.SchemaName = DistributedCacheEntryConstants.SchemaName;
+        });
+
+        // Session Middleware
+        builder.Services.AddSession(options =>
+        {
+            options.IdleTimeout = TimeSpan.FromMinutes(5);
+            options.IOTimeout = TimeSpan.FromSeconds(10);
+            options.Cookie.Name = "WebAuthnTest-ChallengeCookie";
+            options.Cookie.MaxAge = TimeSpan.FromMinutes(5);
+            options.Cookie.IsEssential = true;
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SameSite = SameSiteMode.Strict;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        });
+
+        // FIDO2 authentication - for registering and logging in with authenticator devices
+        builder.Services
+            .AddFido2(options =>
+            {
+                options.ServerDomain = frontendAppUri().Host;
+                options.ServerName = "WebAuthn Test";
+                options.Origins = new HashSet<string>(Enumerable.Repeat(frontendAppOrigin(), 1));
+                options.TimestampDriftTolerance = 100;
+            })
+            .AddCachedMetadataService(options =>
+            {
+                //TODO: because the metadata service relies on the "less than ideal" memory cache above
+                //there could be some performance degradation on startup.
+                options.AddFidoMetadataRepository();
+            });
+
+        // For all request authentication (except initial login) - Cookies
         builder.Services
             .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
             .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
@@ -94,45 +158,10 @@ public class Program
                 .Build();
         });
 
-        //caches used by Session and Fido2 middleware
-        builder.Services.AddMemoryCache();
-        builder.Services.AddDistributedSqlServerCache(options =>
-        {
-            options.ConnectionString = builder.Configuration.GetConnectionString("Default");
-            options.TableName = DistributedCacheEntryConstants.TableName;
-            options.SchemaName = DistributedCacheEntryConstants.SchemaName;
-        });
+    }
 
-        builder.Services.AddSession(options =>
-        {
-            options.IdleTimeout = TimeSpan.FromMinutes(5);
-            options.IOTimeout = TimeSpan.FromSeconds(10);
-            options.Cookie.Name = "WebAuthnTest-ChallengeCookie";
-            options.Cookie.MaxAge = TimeSpan.FromMinutes(5);
-            options.Cookie.IsEssential = true;
-            options.Cookie.HttpOnly = true;
-            options.Cookie.SameSite = SameSiteMode.Strict;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-        });
-
-        builder.Services
-            .AddFido2(options =>
-            {
-                options.ServerDomain = frontendAppUri().Host;
-                options.ServerName = "WebAuthn Test";
-                options.Origins = new HashSet<string>(Enumerable.Repeat(frontendAppOrigin(), 1));
-                options.TimestampDriftTolerance = 100;
-            })
-            .AddCachedMetadataService(options =>
-            {
-                //TODO: because the metadata service relies on the "less than ideal" memory cache above
-                //there could be some performance degradation on startup.
-                options.AddFidoMetadataRepository();
-            });
-
-        var app = builder.Build();
-
-        // Configure the HTTP request pipeline.
+    public static void ConfigureRequestPipeline(WebApplication app)
+    {
         if (app.Environment.IsDevelopment())
         {
             app.UseSwagger();
@@ -155,6 +184,11 @@ public class Program
         app.UseAuthorization();
 
         app.MapControllers();
+    }
+
+    public static void MigrateDatabase(WebApplication app)
+    {
+        Console.WriteLine("Migrating Database...");
 
         using (var serviceScope = app.Services.CreateScope())
         {
@@ -165,6 +199,6 @@ public class Program
                 .Migrate();
         }
 
-        app.Run();
+        Console.WriteLine("Database migration complete.");
     }
 }

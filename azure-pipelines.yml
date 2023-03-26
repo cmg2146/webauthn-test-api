@@ -25,7 +25,7 @@ stages:
     displayName: Build and Deploy API
     steps:
     - task: Docker@2
-      displayName: Build Docker Image
+      displayName: Build and Push Docker Image
       inputs:
         command: buildAndPush
         containerRegistry: $(CONTAINER_REGISTRY_SERVICE_CONNECTION)
