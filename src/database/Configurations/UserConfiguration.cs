@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 public class UserConfiguration : EntityConfiguration<User>
 {
+    public const int NAME_MAX_LENGTH = 255;
+
     public override void Configure(EntityTypeBuilder<User> builder)
     {
         base.Configure(builder);
@@ -13,14 +15,14 @@ public class UserConfiguration : EntityConfiguration<User>
 
         builder
             .Property(t => t.DisplayName)
-            .HasMaxLength(255);
+            .HasMaxLength(NAME_MAX_LENGTH);
 
         builder
             .Property(t => t.FirstName)
-            .HasMaxLength(255);
+            .HasMaxLength(NAME_MAX_LENGTH);
 
         builder
             .Property(t => t.LastName)
-            .HasMaxLength(255);
+            .HasMaxLength(NAME_MAX_LENGTH);
     }
 }

@@ -142,36 +142,34 @@ public class WebAuthnController : Controller
                 cancellationToken);
             var originalCreationOptions = CredentialCreateOptions.FromJson(optionsString);
 
-            credentialCreateResult = await _fido2
-                .MakeNewCredentialAsync(
-                    attestationResponse,
-                    originalCreationOptions,
-                    //we have a unique index in the database so this would be redundant
-                    async (args, _) => await Task.FromResult(true),
-                    cancellationToken: cancellationToken);
+            credentialCreateResult = await _fido2.MakeNewCredentialAsync(
+                attestationResponse,
+                originalCreationOptions,
+                //we have a unique index in the database so this would be redundant
+                async (args, _) => await Task.FromResult(true),
+                cancellationToken: cancellationToken);
         }
         catch (Exception e)
         {
             return Unauthorized(FormatException(e));
         }
 
-        var aaGuid = credentialCreateResult.Result!.Aaguid;
-        var authenticatorMetadata = await _fido2Mds.GetEntryAsync(aaGuid, cancellationToken);
-        var authenticatorDescription = authenticatorMetadata
-            ?.MetadataStatement
-            .Description
-            .Truncate(255);
+        var attestationResult = credentialCreateResult.Result!;
+        var authenticatorMetadata = await _fido2Mds.GetEntryAsync(attestationResult.Aaguid, cancellationToken);
+        var authenticatorDescription = authenticatorMetadata?.MetadataStatement.Description;
+        var credentialDisplayName = authenticatorDescription ?? attestationResult.CredType;
+        credentialDisplayName = credentialDisplayName.Truncate(UserCredentialConfiguration.DISPLAY_NAME_MAX_LENGTH);
 
         //TODO: Delete existing credential if it has same Id?
         var userCredentialToAdd = new UserCredential
         {
             UserId = userId,
-            CredentialId = credentialCreateResult.Result.CredentialId,
-            PublicKey = credentialCreateResult.Result.PublicKey,
-            AttestationFormatId = credentialCreateResult.Result.CredType,
-            AaGuid = aaGuid,
-            DisplayName = authenticatorDescription ?? credentialCreateResult.Result.CredType,
-            SignatureCounter = credentialCreateResult.Result.Counter
+            CredentialId = attestationResult.CredentialId,
+            PublicKey = attestationResult.PublicKey,
+            AttestationFormatId = attestationResult.CredType,
+            AaGuid = attestationResult.Aaguid,
+            DisplayName = credentialDisplayName,
+            SignatureCounter = attestationResult.Counter
         };
 
         using (var hash = SHA512.Create())
@@ -179,13 +177,12 @@ public class WebAuthnController : Controller
             userCredentialToAdd.CredentialIdHash = hash.ComputeHash(userCredentialToAdd.CredentialId);
         }
 
-        var entry = _db.UserCredentials.Add(userCredentialToAdd);
-
+        _db.UserCredentials.Add(userCredentialToAdd);
         await _db.SaveChangesAsync(cancellationToken);
 
         // System.Text.Json cannot serialize these properly. See https://github.com/passwordless-lib/fido2-net-lib/issues/328
-        credentialCreateResult.Result.AttestationCertificate = null;
-        credentialCreateResult.Result.AttestationCertificateChain = null;
+        attestationResult.AttestationCertificate = null;
+        attestationResult.AttestationCertificateChain = null;
 
         return credentialCreateResult;
     }

@@ -6,6 +6,12 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 public class UserCredentialConfiguration : EntityConfiguration<UserCredential>
 {
+    /// <summary>
+    /// SHA 512 hash is 64 bytes
+    /// </summary>
+    public const int CREDENTIAL_HASH_MAX_LENGTH = 64;
+    public const int DISPLAY_NAME_MAX_LENGTH = 255;
+
     public override void Configure(EntityTypeBuilder<UserCredential> builder)
     {
         base.Configure(builder);
@@ -16,11 +22,11 @@ public class UserCredentialConfiguration : EntityConfiguration<UserCredential>
 
         builder
             .Property(t => t.CredentialIdHash)
-            .HasMaxLength(64);
+            .HasMaxLength(CREDENTIAL_HASH_MAX_LENGTH);
 
         builder
             .Property(t => t.DisplayName)
-            .HasMaxLength(255);
+            .HasMaxLength(DISPLAY_NAME_MAX_LENGTH);
 
         builder
             .Property(t => t.CredentialId)
