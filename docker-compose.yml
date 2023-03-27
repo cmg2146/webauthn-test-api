@@ -5,7 +5,6 @@ services:
   api:
     build:
       context: .
-    command: ["/wait-for-it.sh", "database:1433", "-t", "30", "--", "dotnet", "WebAuthnTest.Api.dll"]
     ports:
       - 10001:80
     environment:
@@ -13,8 +12,6 @@ services:
       SQLCONNSTR_DEFAULT: Server=database;Database=WebAuthnTest;MultipleActiveResultSets=True;User Id=sa;Password=AdminPassword9@;
       WEB_URL: https://localhost:10000
       Logging__LogLevel__Default: Debug
-    volumes:
-      - ./wait-for-it.sh:/wait-for-it.sh
     depends_on:
       - database
 
@@ -22,7 +19,7 @@ services:
     image: "mcr.microsoft.com/mssql/server:2019-latest"
     #mapping to a port on the host isnt necessary, but it's helpful if you want to connect
     #to the database using SQL Server Management Studio
-    ports:   
+    ports:
       - 1433:1433
     environment:
       MSSQL_PID: Developer

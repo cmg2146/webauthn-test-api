@@ -57,6 +57,4 @@ The following documentation was helpful to setup this project:
 
 [Configuring SQL Server for Docker](https://learn.microsoft.com/en-us/sql/linux/sql-server-linux-docker-container-configure)
 
-[Sync Container Startup in Docker Compose](https://github.com/vishnubob/wait-for-it)
-
 * TODO: Setup <span>ASP.</span>NET core debugging w/docker

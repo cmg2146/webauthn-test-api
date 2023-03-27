@@ -17,6 +17,9 @@ public class Program
         AddServices(builder);
         var app = builder.Build();
 
+        // always wait for database before starting the app
+        WaitForDatabase(app);
+
         var hasMigrateDatabaseOption = args.Contains("--migrate-database");
         if (hasMigrateDatabaseOption || app.Environment.IsDevelopment())
         {
@@ -184,6 +187,40 @@ public class Program
         app.UseAuthorization();
 
         app.MapControllers();
+    }
+
+    public static void WaitForDatabase(WebApplication app)
+    {
+        Console.WriteLine("Waiting for Database...");
+
+        using (var serviceScope = app.Services.CreateScope())
+        {
+            var db = serviceScope
+                .ServiceProvider
+                .GetRequiredService<WebAuthnTestDbContext>()
+                .Database;
+
+            // try to connect to the database at most 20 times, increasing the retry time on
+            // each attempt
+            var maxAttempts = 20;
+            var connected = false;
+            for (var attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                Thread.Sleep(attempt * 1000);
+                if (db.CanConnect())
+                {
+                    connected = true;
+                    break;
+                }
+            }
+
+            if (!connected)
+            {
+                throw new Exception("Could not connect to the database.");
+            }
+        }
+
+        Console.WriteLine("Database is ready!");
     }
 
     public static void MigrateDatabase(WebApplication app)
