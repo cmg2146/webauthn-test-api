@@ -3,34 +3,33 @@ namespace WebAuthnTest.Api;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Azure.Identity;
+using Azure.Security.KeyVault.Keys;
 using WebAuthnTest.Database;
 
 public class Program
 {
+    private const string HEALTHCHECK_READY_TAG = "ready";
+    private const string HEALTHCHECK_LIVE_TAG = "live";
+
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
         AddServices(builder);
         var app = builder.Build();
 
-        // always wait for database before starting the app
-        WaitForDatabase(app);
-
-        var hasMigrateDatabaseOption = args.Contains("--migrate-database");
-        if (hasMigrateDatabaseOption || app.Environment.IsDevelopment())
+        if (args.Contains("--migrate-database"))
         {
             MigrateDatabase(app);
 
             // the "--migrate-database" option allows a on-off process to migrate the database,
             // so dont run the app if it's present.
-            if (hasMigrateDatabaseOption)
-            {
-                return;
-            }
+            return;
         }
 
         ConfigureRequestPipeline(app);
@@ -51,6 +50,11 @@ public class Program
                 .UseSqlServer(builder.Configuration.GetConnectionString("Default"));
         });
 
+        // database readiness healthcheck
+        builder.Services.AddHealthChecks()
+            .AddDbContextCheck<WebAuthnTestDbContext>(
+                tags: new string[] { "database", HEALTHCHECK_READY_TAG });
+
         // ASP.NET Core Data Protection
         var dataProtectionBuilder = builder.Services
             .AddDataProtection()
@@ -59,10 +63,23 @@ public class Program
         // encrypt data protection keys in production using key vault
         if (!builder.Environment.IsDevelopment())
         {
-            dataProtectionBuilder
-                .ProtectKeysWithAzureKeyVault(
-                    new Uri(Environment.GetEnvironmentVariable("AZURE_KEY_VAULT_ID")!),
-                    new ManagedIdentityCredential());
+            var keyUri = new Uri(Environment.GetEnvironmentVariable("KEY_VAULT_DATAPROTECTION_KEY_ID")!);
+            var keyProps = new KeyProperties(keyUri);
+
+            dataProtectionBuilder.ProtectKeysWithAzureKeyVault(
+                keyProps.Id,
+                new ManagedIdentityCredential());
+
+            // key vault readiness healthcheck
+            builder.Services.AddHealthChecks()
+                .AddAzureKeyVault(
+                    keyProps.VaultUri,
+                    new ManagedIdentityCredential(),
+                    options =>
+                    {
+                        options.AddKey(keyProps.Name);
+                    },
+                    tags: new string[] { "keyvault", HEALTHCHECK_READY_TAG });
         }
 
         builder.Services.AddCors(options =>
@@ -161,6 +178,12 @@ public class Program
                 .Build();
         });
 
+        // app liveness healthcheck
+        builder.Services.AddHealthChecks()
+            .AddCheck(
+                "liveness",
+                () => HealthCheckResult.Healthy(),
+                tags: new string[] { HEALTHCHECK_LIVE_TAG });
     }
 
     public static void ConfigureRequestPipeline(WebApplication app)
@@ -187,6 +210,20 @@ public class Program
         app.UseAuthorization();
 
         app.MapControllers();
+
+        app.MapHealthChecks("/healthcheck/ready", new HealthCheckOptions
+        {
+            Predicate = healthCheck => healthCheck.Tags.Contains(HEALTHCHECK_READY_TAG),
+            AllowCachingResponses = false
+        })
+        .RequireAuthorization();
+
+        app.MapHealthChecks("/healthcheck/live", new HealthCheckOptions
+        {
+            Predicate = healthCheck => healthCheck.Tags.Contains(HEALTHCHECK_LIVE_TAG),
+            AllowCachingResponses = false
+        })
+        .RequireAuthorization();
     }
 
     public static void WaitForDatabase(WebApplication app)
@@ -200,32 +237,28 @@ public class Program
                 .GetRequiredService<WebAuthnTestDbContext>()
                 .Database;
 
-            // try to connect to the database at most 20 times, increasing the retry time on
-            // each attempt
-            var maxAttempts = 20;
-            var connected = false;
+            // try to connect to the database at most 10 times, increasing the retry time on
+            // each attempt by 1 second
+            var maxAttempts = 10;
             for (var attempt = 0; attempt < maxAttempts; attempt++)
             {
                 Thread.Sleep(attempt * 1000);
                 if (db.CanConnect())
                 {
-                    connected = true;
-                    break;
+                    Console.WriteLine("Database is ready!");
+                    return;
                 }
-            }
-
-            if (!connected)
-            {
-                throw new Exception("Could not connect to the database.");
             }
         }
 
-        Console.WriteLine("Database is ready!");
+        throw new Exception("Could not connect to the database.");
     }
 
     public static void MigrateDatabase(WebApplication app)
     {
         Console.WriteLine("Migrating Database...");
+
+        WaitForDatabase(app);
 
         using (var serviceScope = app.Services.CreateScope())
         {

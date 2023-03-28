@@ -24,8 +24,8 @@ The following environment variables must be configured, at run time, for proper 
   * The HTTPS URL to the client/frontend app, i.e. https://localhost:10000
 * SQLCONNSTR_DEFAULT
   * The connection string to the SQL Server database
-* AZURE_KEY_VAULT_ID (Production Only)
-  * The Azure Key vault identifier. Key Vault encrpyts data protection keys at rest.
+* KEY_VAULT_DATAPROTECTION_KEY_ID (Production Only)
+  * The URI of the Key Vault key used to encrypt ASP.NET Core Data Protection Keys.
 
 For development, all environment variables have already been set in the docker compose file and can
 be tweaked as needed. Some other environment variables, not listed above, are required for development and

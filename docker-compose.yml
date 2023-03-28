@@ -5,6 +5,7 @@ services:
   api:
     build:
       context: .
+    command: /start-api.sh
     ports:
       - 10001:80
     environment:
@@ -12,13 +13,15 @@ services:
       SQLCONNSTR_DEFAULT: Server=database;Database=WebAuthnTest;MultipleActiveResultSets=True;User Id=sa;Password=AdminPassword9@;
       WEB_URL: https://localhost:10000
       Logging__LogLevel__Default: Debug
+    volumes:
+      - ./start-api.sh:/start-api.sh
     depends_on:
       - database
 
   database:
     image: "mcr.microsoft.com/mssql/server:2019-latest"
-    #mapping to a port on the host isnt necessary, but it's helpful if you want to connect
-    #to the database using SQL Server Management Studio
+    # mapping to a port on the host isnt necessary, but it's helpful if you want to connect
+    # to the database using SQL Server Management Studio
     ports:
       - 1433:1433
     environment:

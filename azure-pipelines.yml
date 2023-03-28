@@ -53,8 +53,8 @@ stages:
               "slotSetting": false
             },
             {
-              "name": "AZURE_KEY_VAULT_ID",
-              "value": "$(AZURE_KEY_VAULT_ID)",
+              "name": "KEY_VAULT_DATAPROTECTION_KEY_ID",
+              "value": "$(KEY_VAULT_DATAPROTECTION_KEY_ID)",
               "slotSetting": false
             }
           ]
