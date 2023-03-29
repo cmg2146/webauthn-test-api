@@ -44,7 +44,7 @@ Other commands might fail without a valid connection string. See the [EF Core To
 For development only, the app has been configured to update the database automatically (apply all pending migrations) at startup.
 For production, the database can be migrated using a one-off process by running the following command in the app's execution environment:
 
-`dotnet WebAuthnTest.Api.dll --migrate-database"
+`dotnet WebAuthnTest.Api.dll --migrate-database`
 
 ## Notes
 
