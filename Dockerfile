@@ -1,10 +1,7 @@
-FROM mcr.microsoft.com/dotnet/sdk:6.0-bullseye-slim AS dotnet-build
+FROM mcr.microsoft.com/dotnet/sdk:6.0-bullseye-slim AS build
 
 ARG BUILD_CONFIGURATION=Release
 ENV BUILD_CONFIGURATION=$BUILD_CONFIGURATION
-
-ENV ASPNETCORE_ENVIRONMENT=Production
-ENV Logging__LogLevel__Default=Information
 
 WORKDIR /app
 
@@ -19,7 +16,11 @@ RUN ["dotnet", "publish", "./src/api", "--no-restore", "-c", "$BUILD_CONFIGURATI
 
 # final stage/image
 FROM mcr.microsoft.com/dotnet/aspnet:6.0-bullseye-slim
+
+ENV ASPNETCORE_ENVIRONMENT=Production
+ENV Logging__LogLevel__Default=Information
+
 WORKDIR /app
-COPY --from=dotnet-build /app/dist ./
+COPY --from=build /app/dist ./
 
 CMD ["dotnet", "WebAuthnTest.Api.dll"]
