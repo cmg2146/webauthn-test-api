@@ -14,7 +14,8 @@ RUN ["dotnet", "restore", "./src/api", "--force"]
 COPY ./src ./src
 RUN ["dotnet", "publish", "./src/api", "--no-restore", "-c", "$BUILD_CONFIGURATION", "-o", "/app/dist"]
 
-# final stage/image
+
+# final stage
 FROM mcr.microsoft.com/dotnet/aspnet:6.0-bullseye-slim
 
 ENV ASPNETCORE_ENVIRONMENT=Production
