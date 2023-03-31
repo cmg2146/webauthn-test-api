@@ -1,0 +1,16 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Docker Attach",
+      "type": "docker",
+      "request": "attach",
+      "platform": "netCore",
+      "containerName": "webauthn-test-api_api",
+      "removeContainerAfterDebug": false,
+      "sourceFileMap": {
+        "/app/src":"${workspaceFolder}/src"
+      }
+    }
+  ]
+}

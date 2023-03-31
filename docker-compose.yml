@@ -3,8 +3,12 @@ version: '3.1'
 services:
 
   api:
+    # note: specifying the container name prohibits scaling - fine for development.
+    container_name: webauthn-test-api_api
     build:
       context: .
+      args:
+        - BUILD_CONFIGURATION=Debug
     command: /start-api.sh
     ports:
       - 10001:80

@@ -15,6 +15,10 @@ In development, the API can be run using Docker Linux containers by executing th
 
 ```docker-compose up```
 
+### Debug
+To debug in VS Code, open the Debug tab and start the "Docker Attach" launch config. This will attach the debugger to
+the running container. Make sure to select "Yes" when prompted to copy the debugger to the container.
+
 ### Configuration
 The following environment variables must be configured, at run time, for proper operation:
 
@@ -56,5 +60,3 @@ The following documentation was helpful to setup this project:
 [Docker for <span>ASP.</span>NET Core](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/docker/building-net-docker-images?view=aspnetcore-6.0)
 
 [Configuring SQL Server for Docker](https://learn.microsoft.com/en-us/sql/linux/sql-server-linux-docker-container-configure)
-
-* TODO: Setup <span>ASP.</span>NET core debugging w/docker
