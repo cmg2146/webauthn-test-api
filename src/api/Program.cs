@@ -38,11 +38,25 @@ public class Program
 
     public static void AddServices(WebApplicationBuilder builder)
     {
-        //implemented as lambda functions to prevent exceptions when using ef tools during development
-        static Uri frontendAppUri() => new(Environment.GetEnvironmentVariable("WEB_URL")!);
-        static string frontendAppOrigin() => $"{frontendAppUri().Scheme}://{frontendAppUri().Authority}";
+        AddDatabaseServices(builder);
+        AddDataProtectionServices(builder);
+        AddCachingServices(builder);
+        AddFido2Services(builder);
+        AddAuthServices(builder);
+        AddOpenApiDocServices(builder);
 
-        // Database
+        builder.Services.AddControllers();
+
+        // app liveness healthcheck
+        builder.Services.AddHealthChecks()
+            .AddCheck(
+                "liveness",
+                () => HealthCheckResult.Healthy(),
+                tags: new string[] { HEALTHCHECK_LIVE_TAG });
+    }
+
+    public static void AddDatabaseServices(WebApplicationBuilder builder)
+    {
         builder.Services.AddDbContext<WebAuthnTestDbContext>(options =>
         {
             options
@@ -54,8 +68,10 @@ public class Program
         builder.Services.AddHealthChecks()
             .AddDbContextCheck<WebAuthnTestDbContext>(
                 tags: new string[] { "database", HEALTHCHECK_READY_TAG });
+    }
 
-        // ASP.NET Core Data Protection
+    public static void AddDataProtectionServices(WebApplicationBuilder builder)
+    {
         var dataProtectionBuilder = builder.Services
             .AddDataProtection()
             .PersistKeysToDbContext<WebAuthnTestDbContext>();
@@ -81,17 +97,10 @@ public class Program
                     },
                     tags: new string[] { "keyvault", HEALTHCHECK_READY_TAG });
         }
+    }
 
-        builder.Services.AddCors(options =>
-        {
-            options.AddDefaultPolicy(policy =>
-            {
-                policy.WithOrigins(frontendAppOrigin());
-            });
-        });
-
-        builder.Services.AddControllers();
-
+    public static void AddOpenApiDocServices(WebApplicationBuilder builder)
+    {
         // Swagger/OpenAPI docs. Learn more at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen(options =>
@@ -99,8 +108,10 @@ public class Program
             var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
             options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
         });
+    }
 
-        //caches used by Session and Fido2 middleware
+    public static void AddCachingServices(WebApplicationBuilder builder)
+    {
         builder.Services.AddMemoryCache();
         builder.Services.AddDistributedSqlServerCache(options =>
         {
@@ -108,8 +119,15 @@ public class Program
             options.TableName = DistributedCacheEntryConstants.TableName;
             options.SchemaName = DistributedCacheEntryConstants.SchemaName;
         });
+    }
 
-        // Session Middleware
+    public static void AddFido2Services(WebApplicationBuilder builder)
+    {
+        //implemented as lambda functions to prevent exceptions when using ef tools during development
+        static Uri frontendAppUri() => new(Environment.GetEnvironmentVariable("WEB_URL")!);
+        static string frontendAppOrigin() => $"{frontendAppUri().Scheme}://{frontendAppUri().Authority}";
+
+        // Session Middleware used for the WebAuthn ceremonies to store the challenge
         builder.Services.AddSession(options =>
         {
             options.IdleTimeout = TimeSpan.FromMinutes(5);
@@ -135,10 +153,14 @@ public class Program
             {
                 //TODO: because the metadata service relies on the "less than ideal" memory cache above
                 //there could be some performance degradation on startup.
+                // Why?
                 options.AddFidoMetadataRepository();
             });
+    }
 
-        // For all request authentication (except initial login) - Cookies
+    public static void AddAuthServices(WebApplicationBuilder builder)
+    {
+        // Cookies are used for all request authentication (except WebAuthn initial login).
         builder.Services
             .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
             .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
@@ -177,13 +199,6 @@ public class Program
                 .RequireAuthenticatedUser()
                 .Build();
         });
-
-        // app liveness healthcheck
-        builder.Services.AddHealthChecks()
-            .AddCheck(
-                "liveness",
-                () => HealthCheckResult.Healthy(),
-                tags: new string[] { HEALTHCHECK_LIVE_TAG });
     }
 
     public static void ConfigureRequestPipeline(WebApplication app)
@@ -203,8 +218,6 @@ public class Program
         }
 
         app.UseSession();
-
-        app.UseCors();
 
         app.UseAuthentication();
         app.UseAuthorization();
