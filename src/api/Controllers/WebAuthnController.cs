@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Buffers.Binary;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -84,13 +83,10 @@ public class WebAuthnController : Controller
 
             var fido2User = new Fido2User
             {
-                Id = BitConverter.GetBytes(user.Id),
+                Id = UserHandleConvert.ToUserHandle(user.Id),
                 Name = user.DisplayName,
                 DisplayName = $"{user.FirstName} {user.LastName}"
             };
-
-            // this is redundant if we are on a big endian machine
-            BinaryPrimitives.WriteInt64BigEndian(fido2User.Id, user.Id);
 
             var existingCredentials = await _db
                 .UserCredentials
@@ -241,16 +237,7 @@ public class WebAuthnController : Controller
         AuthenticatorAssertionRawResponse assertionResponse,
         CancellationToken cancellationToken)
     {
-        var userId = BinaryPrimitives.ReadInt64BigEndian(assertionResponse.Response.UserHandle);
-
-        var user = await _db
-            .Users
-            .SingleOrDefaultAsync(t => t.Id == userId, cancellationToken);
-
-        if (user == null)
-        {
-            return Unauthorized();
-        }
+        var userId = UserHandleConvert.ToUserId(assertionResponse.Response.UserHandle);
 
         var credential = await _db
             .UserCredentials
