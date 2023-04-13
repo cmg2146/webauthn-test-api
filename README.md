@@ -15,12 +15,30 @@ In development, the API can be run using Docker Linux containers by executing th
 
 ```docker-compose up```
 
+In production, an Azure DevOps pipeline (azure-pipelines.yml) automatically runs when changes are made to the main branch.
+The pipeline requires the following variables to be configured to properly deploy the updated code:
+
+* AZURE_SERVICE_CONNECTION
+  * The name of the service connection to Azure. A service connection must be created in Azure DevOps
+  for the pipeline to communicate with Azure.
+* CONTAINER_REGISTRY_SERVICE_CONNECTION
+  * The name of the service connection to the Azure Container Registry (ACR). Docker images are pushed to this ACR.
+  A service connection must be created in Azure DevOps for the pipeline to communicate with the ACR.
+* CONTAINER_REGISTRY_NAMESPACE
+  * The host name of the container registry, for example "{your acr name}.azurecr.io"
+* CONTAINER_IMAGE_REPOSITORY
+  * The name of the Docker image, for example "webauthn-test/api"
+* APP_NAME
+  * The name of the Azure App Service that hosts the web API.
+
+Currently, the variables above are set in a variable group in Azure DevOps.
+
 ### Debug
 To debug in VS Code, open the Debug tab and start the "Docker Attach" launch config. This will attach the debugger to
 the running container. Make sure to select "Yes" when prompted to copy the debugger to the container.
 
 ### Configuration
-The following environment variables must be configured, at run time, for proper operation:
+The following run-time environment variables must be configured for proper operation:
 
 * ASPNETCORE_ENVIRONMENT
   * "Development" or "Production"
