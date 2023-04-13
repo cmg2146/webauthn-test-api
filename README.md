@@ -53,6 +53,8 @@ For development, all environment variables have already been set in the docker c
 be tweaked as needed. Some other environment variables, not listed above, are required for development and
 have also been set in the docker-compose file.
 
+In production, the variables are set in a variable group in Azure DevOps.
+
 ## Database Migrations
 Migrations must be added whenever making schema changes to the database. To add a migration, run the following command
 at the repo root:
