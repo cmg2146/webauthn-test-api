@@ -1,9 +1,9 @@
-namespace WebAuthnTest.Api;
-
 using System.ComponentModel.DataAnnotations;
 using WebAuthnTest.Database;
 
-public class UserModel : ModelBase
+namespace WebAuthnTest.Api;
+
+public class UserModelUpdate : IUserModelBase
 {
     [Required]
     [StringLength(UserConfiguration.NAME_MAX_LENGTH)]

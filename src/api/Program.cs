@@ -38,6 +38,7 @@ public class Program
 
     public static void AddServices(WebApplicationBuilder builder)
     {
+        AddCustomServices(builder);
         AddDatabaseServices(builder);
         AddDataProtectionServices(builder);
         AddCachingServices(builder);
@@ -53,6 +54,11 @@ public class Program
                 "liveness",
                 () => HealthCheckResult.Healthy(),
                 tags: new string[] { HEALTHCHECK_LIVE_TAG });
+    }
+
+    public static void AddCustomServices(WebApplicationBuilder builder)
+    {
+        builder.Services.AddScoped<UserService>();
     }
 
     public static void AddDatabaseServices(WebApplicationBuilder builder)

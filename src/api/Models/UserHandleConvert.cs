@@ -1,33 +1,13 @@
-namespace WebAuthnTest.Api;
-
-using System.Buffers.Binary;
+namespace WebAuthnTest.Database;
 
 public static class UserHandleConvert
 {
     /// <summary>
-    /// Converts a User Handle to a User Id
+    /// Generates a new User Handle from a Guid
     /// </summary>
-    /// <param name="userHandle">The User Handle from the authenticator device</param>
-    /// <returns>The User Id</returns>
-    public static long ToUserId(byte[] userHandle)
-    {
-        return BinaryPrimitives.ReadInt64BigEndian(userHandle);
-    }
-
-    /// <summary>
-    /// Converts a User Id to a User Handle
-    /// </summary>
-    /// <param name="userId">The User Id</param>
     /// <returns>The User Handle</returns>
-    public static byte[] ToUserHandle(long userId)
+    public static byte[] NewUserHandle()
     {
-        var handle = BitConverter.GetBytes(userId);
-
-        if (BitConverter.IsLittleEndian)
-        {
-            BinaryPrimitives.WriteInt64BigEndian(handle, userId);
-        }
-
-        return handle;
+        return Guid.NewGuid().ToByteArray();
     }
 }

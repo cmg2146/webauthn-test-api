@@ -1,22 +1,20 @@
 namespace WebAuthnTest.Api;
 
-using System.Linq;
+using System.Globalization;
 using System.Security.Claims;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
-using WebAuthnTest.Database;
 
 [ApiController]
 [Route("users")]
 [Produces("application/json")]
 public class UsersController : Controller
 {
-    private readonly WebAuthnTestDbContext _db;
+    private readonly UserService _userService;
 
     public UsersController(
-        WebAuthnTestDbContext db)
+        UserService userService)
     {
-        _db = db;
+        _userService = userService;
     }
 
     /// <summary>
@@ -40,24 +38,14 @@ public class UsersController : Controller
             return Forbid();
         }
 
-        var user = await _db
-            .Users
-            .SingleOrDefaultAsync(t => t.Id == userId, cancellationToken);
+        var user = await _userService.GetUserAsync(userId, cancellationToken);
 
         if (user == null)
         {
             return NotFound("User not found");
         }
 
-        return new UserModel
-        {
-            Id = user.Id,
-            Created = user.Created,
-            Updated = user.Updated,
-            DisplayName = user.DisplayName,
-            FirstName = user.FirstName,
-            LastName = user.LastName
-        };
+        return user;
     }
 
     /// <summary>
@@ -68,27 +56,18 @@ public class UsersController : Controller
     [HttpPost("")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     public async Task<ActionResult<UserModel>> CreateUserAsync(
-        UserModel user,
+        UserModelCreate user,
         CancellationToken cancellationToken)
     {
-        var userToAdd = new User
-        {
-            DisplayName = user.DisplayName,
-            FirstName = user.FirstName,
-            LastName = user.LastName
-        };
-
-        var entry = _db.Users.Add(userToAdd);
-        await _db.SaveChangesAsync(cancellationToken);
-
-        user.Id = entry.Entity.Id;
-        user.Created = entry.Entity.Created;
-        user.Updated = entry.Entity.Updated;
+        var newUser = await _userService.CreateUserAsync(
+            user,
+            credential: null,
+            cancellationToken: cancellationToken);
 
         return CreatedAtAction(
             nameof(GetUserAsync),
-            new { userId = user.Id },
-            user);
+            new { userId = newUser.Id },
+            newUser);
     }
 
     /// <summary>
@@ -104,7 +83,7 @@ public class UsersController : Controller
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateUserAsync(
         long userId,
-        UserModel user,
+        UserModelUpdate user,
         CancellationToken cancellationToken)
     {
         if (User.Identity!.UserId() != userId)
@@ -112,21 +91,12 @@ public class UsersController : Controller
             return Forbid();
         }
 
-        var updatedUser = await _db
-            .Users
-            .AsTracking()
-            .SingleOrDefaultAsync(t => t.Id == userId, cancellationToken);
+        var updated = await _userService.UpdateUserAsync(userId, user, cancellationToken);
 
-        if (updatedUser == null)
+        if (!updated)
         {
             return NotFound();
         }
-
-        updatedUser.DisplayName = user.DisplayName;
-        updatedUser.FirstName = user.FirstName;
-        updatedUser.LastName = user.LastName;
-
-        await _db.SaveChangesAsync(cancellationToken);
 
         return NoContent();
     }
@@ -141,10 +111,7 @@ public class UsersController : Controller
     public async Task<ActionResult<UserModel>> GetMyInfo(CancellationToken cancellationToken)
     {
         var userId = User.Identity!.UserId();
-
-        var user = await _db
-            .Users
-            .SingleOrDefaultAsync(t => t.Id == userId, cancellationToken);
+        var user = await _userService.GetUserAsync(userId, cancellationToken);
 
         //should never happen
         if (user == null)
@@ -152,15 +119,7 @@ public class UsersController : Controller
             return NotFound();
         }
 
-        return new UserModel
-        {
-            Id = user.Id,
-            Created = user.Created,
-            Updated = user.Updated,
-            DisplayName = user.DisplayName,
-            FirstName = user.FirstName,
-            LastName = user.LastName
-        };
+        return user;
     }
 
     /// <summary>
@@ -174,22 +133,7 @@ public class UsersController : Controller
     {
         var userId = User.Identity!.UserId();
 
-        var credentials = _db
-            .UserCredentials
-            .Where(t => t.UserId == userId)
-            .Select(t => new UserCredentialModel
-            {
-                Id = t.Id,
-                Created = t.Created,
-                Updated = t.Updated,
-                UserId = t.UserId,
-                DisplayName = t.DisplayName,
-                AttestationFormatId = t.AttestationFormatId
-            })
-            .OrderBy(t => t.Created)
-            .AsAsyncEnumerable();
-
-        return credentials;
+        return _userService.GetUserCredentials(userId);
     }
 
     /// <summary>
@@ -197,37 +141,18 @@ public class UsersController : Controller
     /// </summary>
     /// <returns>The current session's credential</returns>
     /// <response code="200">Returns the credential</response>
-    /// <response code="404">The logged on user does not have any FIDO credentials setup yet</response>
     [HttpGet("me/credentials/current")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<UserCredentialModel?>> GetActiveCredentialAsync(
         CancellationToken cancellationToken)
     {
-        var credentialIdClaim = (User.Identity as ClaimsIdentity)
-            !.FindFirst(WebAuthnClaimConstants.UserCredentialIdClaimType);
+        // should always be a credential id claim for a logged in user
+        var userId = User.Identity!.UserId();
+        var identity = (User.Identity as ClaimsIdentity)!;
+        var credentialIdClaim = identity.FindFirst(WebAuthnClaimConstants.UserCredentialIdClaimType)!;
+        var credentialId = long.Parse(credentialIdClaim.Value, CultureInfo.InvariantCulture);
 
-        if (long.TryParse(credentialIdClaim?.Value, out long credentialId))
-        {
-            var credential = await _db
-                .UserCredentials
-                .Select(t => new UserCredentialModel
-                {
-                    Id = t.Id,
-                    Created = t.Created,
-                    Updated = t.Updated,
-                    UserId = t.UserId,
-                    DisplayName = t.DisplayName,
-                    AttestationFormatId = t.AttestationFormatId
-                })
-                .SingleOrDefaultAsync(t => t.Id == credentialId, cancellationToken);
-
-            return credential;
-        }
-        else
-        {
-            return NotFound();
-        }
+        return await _userService.GetUserCredentialAsync(userId, credentialId, cancellationToken);
     }
 
     /// <summary>
@@ -243,30 +168,12 @@ public class UsersController : Controller
         CancellationToken cancellationToken)
     {
         var userId = User.Identity!.UserId();
+        var deleted = await _userService.DeleteUserCredentialAsync(userId, credentialId, cancellationToken);
 
-        var credential = await _db
-            .UserCredentials
-            .Select(t => new
-            {
-                Id = t.Id,
-                CredentialIdHash = t.CredentialIdHash,
-                UserId = t.UserId
-            })
-            .SingleOrDefaultAsync(t => t.Id == credentialId, cancellationToken);
-
-        //return not found if the credential belongs to another user - dont want to leak any information
-        if (credential == null || credential.UserId != userId)
+        if (!deleted)
         {
             return NotFound();
         }
-
-        _db.UserCredentials.Remove(new UserCredential
-        {
-            Id = credentialId,
-            //must specfiy this here because its an alternate key or EF can't track the entity.
-            CredentialIdHash = credential.CredentialIdHash
-        });
-        await _db.SaveChangesAsync(cancellationToken);
 
         return NoContent();
     }

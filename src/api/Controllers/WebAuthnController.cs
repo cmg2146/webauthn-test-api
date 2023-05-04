@@ -3,9 +3,6 @@ namespace WebAuthnTest.Api;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Claims;
-using System.Security.Cryptography;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -20,20 +17,20 @@ using WebAuthnTest.Database;
 public class WebAuthnController : Controller
 {
     private readonly IFido2 _fido2;
-    private readonly IMetadataService _fido2Mds;
     private readonly WebAuthnTestDbContext _db;
+    private readonly UserService _userService;
 
     private const string ATTESTATION_OPTIONS_SESSION_KEY = "webAuthn.credentialCreateOptions";
     private const string ASSERTION_OPTIONS_SESSION_KEY = "webAuthn.credentialAssertionOptions";
 
     public WebAuthnController(
         WebAuthnTestDbContext db,
-        IFido2 fido2,
-        IMetadataService fido2Mds)
+        UserService userService,
+        IFido2 fido2)
     {
         _db = db;
+        _userService = userService;
         _fido2 = fido2;
-        _fido2Mds = fido2Mds;
     }
 
     private static string FormatException(Exception e)
@@ -44,62 +41,33 @@ public class WebAuthnController : Controller
     }
 
     /// <summary>
-    /// Begin device registration - retrieve credential creation options to start WebAuthn registration ceremony
+    /// Begin device registration for a new user - retrieve credential creation options
+    /// to start WebAuthn registration ceremony
     /// </summary>
     /// <returns>The credential creation options</returns>
     /// <response code="200">Returns the options</response>
     /// <response code="500">Problem generating options</response>
-    [HttpGet("register")]
+    [AllowAnonymous]
+    [HttpPost("signup-start")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<CredentialCreateOptions>> GetCredentialCreationOptionsAsync(
+    public async Task<ActionResult<CredentialCreateOptions>> GetInitialCredentialCreationOptionsAsync(
+        UserModelCreate user,
         CancellationToken cancellationToken)
     {
-        var userId = User.Identity!.UserId();
-
-        var user = await _db
-            .Users
-            .SingleOrDefaultAsync(t => t.Id == userId, cancellationToken);
-
-        //should never happen
-        if (user == null)
-        {
-            return Unauthorized();
-        }
-
         try
         {
-            var authenticatorSelection = new AuthenticatorSelection
+            var userModel = new UserModel
             {
-                UserVerification = UserVerificationRequirement.Required,
-                RequireResidentKey = true
+                DisplayName = user.DisplayName,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                UserHandle = UserHandleConvert.NewUserHandle()
             };
 
-            var exts = new AuthenticationExtensionsClientInputs()
-            {
-                Extensions = true,
-                UserVerificationMethod = true,
-            };
-
-            var fido2User = new Fido2User
-            {
-                Id = UserHandleConvert.ToUserHandle(user.Id),
-                Name = user.DisplayName,
-                DisplayName = $"{user.FirstName} {user.LastName}"
-            };
-
-            var existingCredentials = await _db
-                .UserCredentials
-                .Where(t => t.UserId == userId)
-                .Select(t => new PublicKeyCredentialDescriptor(t.CredentialId))
-                .ToListAsync(cancellationToken);
-
-            var credentialCreationOptions = _fido2.RequestNewCredential(
-                fido2User,
-                existingCredentials,
-                authenticatorSelection,
-                AttestationConveyancePreference.Direct,
-                exts);
+            var credentialCreationOptions = _userService.GetCredentialCreateOptions(
+                userModel,
+                new List<byte[]>());
 
             await HttpContext.Session.SetStringAsync(
                 ATTESTATION_OPTIONS_SESSION_KEY,
@@ -115,7 +83,115 @@ public class WebAuthnController : Controller
     }
 
     /// <summary>
-    /// Complete device registration - post authenticator attestation response to complete WebAuthn registration ceremony
+    /// Complete device registration for a new user - post authenticator attestation response to complete
+    /// WebAuthn registration ceremony
+    /// </summary>
+    /// <returns>The new credential info</returns>
+    /// <response code="200">Signs the user in with an authentication cookie</response>
+    /// <response code="401">There was an issue validating the authenticator attestation response</response>
+    [AllowAnonymous]
+    [HttpPost("signup-finish")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> CreateInitialCredentialAsync(
+        AuthenticatorAttestationRawResponse attestationResponse,
+        CancellationToken cancellationToken)
+    {
+        Fido2.CredentialMakeResult credentialCreateResult;
+
+        try
+        {
+            //get the credential creation options we originally sent to client
+            var originalCreationOptions = CredentialCreateOptions.FromJson(
+                await HttpContext.Session.GetStringAsync(
+                    ATTESTATION_OPTIONS_SESSION_KEY,
+                    cancellationToken
+                )
+            );
+
+            credentialCreateResult = await _fido2.MakeNewCredentialAsync(
+                attestationResponse,
+                originalCreationOptions,
+                //we have a unique index in the database so this would be redundant
+                async (args, _) => await Task.FromResult(true),
+                cancellationToken: cancellationToken);
+        }
+        catch (Exception e)
+        {
+            return Unauthorized(FormatException(e));
+        }
+
+        var attestationResult = credentialCreateResult.Result!;
+        var credential = await _userService.GenerateCredentialAsync(
+            attestationResult,
+            cancellationToken);
+
+        var user = new UserModelCreate
+        {
+            DisplayName = attestationResult.User.Name,
+            FirstName = attestationResult.User.DisplayName.Split(" ")[0],
+            LastName = attestationResult.User.DisplayName.Split(" ")[1]
+        };
+
+        await _userService.CreateUserAsync(
+            user,
+            userHandle: attestationResult.User.Id,
+            credential: credential,
+            cancellationToken);
+
+        return this.SignInWithUserCredential(credential);
+    }
+
+    /// <summary>
+    /// Begin device registration for existing user - retrieve credential creation options
+    /// to start WebAuthn registration ceremony
+    /// </summary>
+    /// <returns>The credential creation options</returns>
+    /// <response code="200">Returns the options</response>
+    /// <response code="500">Problem generating options</response>
+    [HttpGet("register")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<CredentialCreateOptions>> GetCredentialCreationOptionsAsync(
+        CancellationToken cancellationToken)
+    {
+        var userId = User.Identity!.UserId();
+        var user = await _userService.GetUserAsync(userId, cancellationToken);
+
+        //should never happen
+        if (user == null)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var existingCredentials = _db
+                .UserCredentials
+                .Where(t => t.UserId == userId)
+                .Select(t => t.CredentialId)
+                .AsEnumerable();
+
+            var credentialCreationOptions = _userService.GetCredentialCreateOptions(
+                user,
+                existingCredentials);
+
+            await HttpContext.Session.SetStringAsync(
+                ATTESTATION_OPTIONS_SESSION_KEY,
+                credentialCreationOptions.ToJson(),
+                cancellationToken);
+
+            return credentialCreationOptions;
+        }
+        catch (Exception e)
+        {
+            return Problem(FormatException(e), statusCode: StatusCodes.Status500InternalServerError);
+        }
+    }
+
+    /// <summary>
+    /// Complete device registration for existing user - post authenticator attestation response to
+    /// complete WebAuthn registration ceremony
     /// </summary>
     /// <returns>The new credential info</returns>
     /// <response code="200">Returns the new credential info</response>
@@ -133,15 +209,17 @@ public class WebAuthnController : Controller
         try
         {
             //get the credential creation options we originally sent to client
-            var optionsString = await HttpContext.Session.GetStringAsync(
-                ATTESTATION_OPTIONS_SESSION_KEY,
-                cancellationToken);
-            var originalCreationOptions = CredentialCreateOptions.FromJson(optionsString);
+            var originalCreationOptions = CredentialCreateOptions.FromJson(
+                await HttpContext.Session.GetStringAsync(
+                    ATTESTATION_OPTIONS_SESSION_KEY,
+                    cancellationToken
+                )
+            );
 
             credentialCreateResult = await _fido2.MakeNewCredentialAsync(
                 attestationResponse,
                 originalCreationOptions,
-                //we have a unique index in the database so this would be redundant
+                // we have a unique index in the database so this would be redundant
                 async (args, _) => await Task.FromResult(true),
                 cancellationToken: cancellationToken);
         }
@@ -151,28 +229,11 @@ public class WebAuthnController : Controller
         }
 
         var attestationResult = credentialCreateResult.Result!;
-        var authenticatorMetadata = await _fido2Mds.GetEntryAsync(attestationResult.Aaguid, cancellationToken);
-        var authenticatorDescription = authenticatorMetadata?.MetadataStatement.Description;
-        var credentialDisplayName = authenticatorDescription ?? attestationResult.CredType;
-        credentialDisplayName = credentialDisplayName.Truncate(UserCredentialConfiguration.DISPLAY_NAME_MAX_LENGTH);
+        var userCredentialToAdd = await _userService.GenerateCredentialAsync(
+            attestationResult,
+            cancellationToken);
 
         //TODO: Delete existing credential if it has same Id?
-        var userCredentialToAdd = new UserCredential
-        {
-            UserId = userId,
-            CredentialId = attestationResult.CredentialId,
-            PublicKey = attestationResult.PublicKey,
-            AttestationFormatId = attestationResult.CredType,
-            AaGuid = attestationResult.Aaguid,
-            DisplayName = credentialDisplayName,
-            SignatureCounter = attestationResult.Counter
-        };
-
-        using (var hash = SHA512.Create())
-        {
-            userCredentialToAdd.CredentialIdHash = hash.ComputeHash(userCredentialToAdd.CredentialId);
-        }
-
         _db.UserCredentials.Add(userCredentialToAdd);
         await _db.SaveChangesAsync(cancellationToken);
 
@@ -199,15 +260,7 @@ public class WebAuthnController : Controller
     {
         try
         {
-            var exts = new AuthenticationExtensionsClientInputs()
-            {
-                UserVerificationMethod = true
-            };
-
-            var credentialAssertionOptions = _fido2.GetAssertionOptions(
-                new List<PublicKeyCredentialDescriptor>(),
-                UserVerificationRequirement.Required,
-                exts);
+            var credentialAssertionOptions = _userService.GetCredentialAssertionOptions(new List<byte[]>());
 
             await HttpContext.Session.SetStringAsync(
                 ASSERTION_OPTIONS_SESSION_KEY,
@@ -237,78 +290,47 @@ public class WebAuthnController : Controller
         AuthenticatorAssertionRawResponse assertionResponse,
         CancellationToken cancellationToken)
     {
-        var userId = UserHandleConvert.ToUserId(assertionResponse.Response.UserHandle);
-
-        var credential = await _db
-            .UserCredentials
-            .AsTracking()
-            .SingleOrDefaultAsync(t =>
-                t.UserId == userId && t.CredentialId == assertionResponse.Id,
-                cancellationToken);
+        var credential = await _userService.GetUserCredentialRawAsync(
+            assertionResponse.Response.UserHandle,
+            assertionResponse.Id,
+            cancellationToken);
 
         if (credential == null)
         {
             return Unauthorized();
         }
 
+        AssertionVerificationResult assertionVerificationResult;
         try
         {
             // get the assertion options we orignally sent the client
-            var optionsString = await HttpContext.Session.GetStringAsync(
-                ASSERTION_OPTIONS_SESSION_KEY,
-                cancellationToken);
-            var originalRequestOptions = AssertionOptions.FromJson(optionsString);
+            var originalRequestOptions = AssertionOptions.FromJson(
+                await HttpContext.Session.GetStringAsync(
+                    ASSERTION_OPTIONS_SESSION_KEY,
+                    cancellationToken
+                )
+            );
 
-            var assertionVerificationResult = await _fido2.MakeAssertionAsync(
+            assertionVerificationResult = await _fido2.MakeAssertionAsync(
                 assertionResponse,
                 originalRequestOptions,
                 credential.PublicKey,
                 credential.SignatureCounter,
-                async (args, _) => await Task.FromResult(credential.UserId == userId),
+                // we have already checked the credential belongs to the user
+                async (args, _) => await Task.FromResult(true),
                 cancellationToken: cancellationToken);
-
-            // update the counter
-            credential.SignatureCounter = assertionVerificationResult.Counter;
-            await _db.SaveChangesAsync(cancellationToken);
         }
         catch (Exception e)
         {
             return Unauthorized(FormatException(e));
         }
 
+        // update the counter
+        _db.Attach(credential);
+        credential.SignatureCounter = assertionVerificationResult.Counter;
+        await _db.SaveChangesAsync(cancellationToken);
+
         return this.SignInWithUserCredential(credential);
-    }
-
-    /// <summary>
-    /// Register new user and signs the new user in
-    /// </summary>
-    /// <param name="user"></param>
-    /// <returns>Signs the new user in by issuing an authentication cookie</returns>
-    /// <response code="200">Successful user registration</response>
-    [AllowAnonymous]
-    [HttpPost("register-user")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> CreateAccountAsync(UserModel user)
-    {
-        var userToAdd = new User
-        {
-            DisplayName = user.DisplayName,
-            FirstName = user.FirstName,
-            LastName = user.LastName
-        };
-
-        var entry = _db.Users.Add(userToAdd);
-        await _db.SaveChangesAsync();
-
-        var identity = new ClaimsIdentity(CookieAuthenticationDefaults.AuthenticationScheme);
-        identity.AddClaim(new Claim(
-            identity.NameClaimType,
-            $"{entry.Entity.Id}",
-            ClaimValueTypes.UInteger64
-        ));
-
-        //go ahead and sign the user although no credentials registered yet
-        return SignIn(new ClaimsPrincipal(identity), CookieAuthenticationDefaults.AuthenticationScheme);
     }
 
     /// <summary>
