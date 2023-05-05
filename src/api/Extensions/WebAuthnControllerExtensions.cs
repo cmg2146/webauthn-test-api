@@ -7,11 +7,18 @@ using WebAuthnTest.Database;
 
 public static class WebAuthnControllerExtensions
 {
+    /// <summary>
+    /// Signs the user into the specified authentication scheme using a WebAuthn credential.
+    /// </summary>
+    /// <param name="controller">The WebAuthnController Controller instance.</param>
+    /// <param name="credential">The WebAuthn credential to sign in with.</param>
+    /// <param name="authenticationScheme">The authentication scheme to sign the user into.</param>
     public static SignInResult SignInWithUserCredential(
         this WebAuthnController controller,
-        UserCredential credential)
+        UserCredential credential,
+        string authenticationScheme = CookieAuthenticationDefaults.AuthenticationScheme)
     {
-        var identity = new ClaimsIdentity(CookieAuthenticationDefaults.AuthenticationScheme);
+        var identity = new ClaimsIdentity(authenticationScheme);
 
         identity.AddClaim(new Claim(
             identity.NameClaimType,
@@ -19,17 +26,8 @@ public static class WebAuthnControllerExtensions
             ClaimValueTypes.UInteger64
         ));
 
-        identity.AddClaim(new Claim(
-            ClaimTypes.AuthenticationMethod,
-            WebAuthnClaimConstants.AuthenticationMethod
-        ));
+        identity.AddWebAuthnClaims(credential);
 
-        identity.AddClaim(new Claim(
-            WebAuthnClaimConstants.UserCredentialIdClaimType,
-            $"{credential.Id}",
-            ClaimValueTypes.UInteger64
-        ));
-
-        return controller.SignIn(new ClaimsPrincipal(identity), CookieAuthenticationDefaults.AuthenticationScheme);
+        return controller.SignIn(new ClaimsPrincipal(identity), authenticationScheme);
     }
 }

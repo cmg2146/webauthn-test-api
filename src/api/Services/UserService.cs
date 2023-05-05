@@ -22,6 +22,17 @@ public class UserService
         _fido2Mds = fido2Mds;
     }
 
+    /// <summary>
+    /// Creates a new user in the database.
+    /// </summary>
+    /// <param name="user">The user to create.</param>
+    /// <param name="userHandle">
+    /// The user's handle. This corresponds to the User Handle in the WebAuthn spec. If null,
+    /// a random handle will be generated.
+    /// </param>
+    /// <param name="credential">A login credential to add to the user, if any.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The new user.</returns>
     public async Task<UserModel> CreateUserAsync(
         UserModelCreate user,
         byte[]? userHandle = null,
@@ -47,6 +58,12 @@ public class UserService
         return (await GetUserAsync(entry.Entity.Id, cancellationToken))!;
     }
 
+    /// <summary>
+    /// Gets a user from the database with the specified Id.
+    /// </summary>
+    /// <param name="userId">The user Id.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The user, or null if not found.</returns>
     public async Task<UserModel?> GetUserAsync(
         long userId,
         CancellationToken cancellationToken = default)
@@ -72,6 +89,13 @@ public class UserService
         };
     }
 
+    /// <summary>
+    /// Updates the user with the specified Id.
+    /// </summary>
+    /// <param name="userId">The User's Id.</param>
+    /// <param name="user">The updated user data.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>True if the user was updated, false if not found.</returns>
     public async Task<bool> UpdateUserAsync(
         long userId,
         UserModelUpdate user,
@@ -96,6 +120,13 @@ public class UserService
         return true;
     }
 
+    /// <summary>
+    /// Gets the credential with the specified User Id and Credential Id.
+    /// </summary>
+    /// <param name="userId">The User's Id.</param>
+    /// <param name="credentialId">The credential Id.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The credential, or null if not found.</returns>
     public async Task<UserCredentialModel?> GetUserCredentialAsync(
         long userId,
         long credentialId,
@@ -123,6 +154,14 @@ public class UserService
         };
     }
 
+    /// <summary>
+    /// Gets raw credential information with the specified, raw Credential Id, belonging to the user with
+    /// the specified user handle. The raw credential includes the public key and other low-level information.
+    /// </summary>
+    /// <param name="userHandle">The user handle. This is the User Handle from the WebAuthn spec.</param>
+    /// <param name="credentialId">The raw credential Id.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The raw credential, or null if not found.</returns>
     public async Task<UserCredential?> GetUserCredentialRawAsync(
         byte[] userHandle,
         byte[] credentialId,
@@ -135,6 +174,11 @@ public class UserService
                 cancellationToken);
     }
 
+    /// <summary>
+    /// Get a user's credentials.
+    /// </summary>
+    /// <param name="userId">The user's Id.</param>
+    /// <returns>The user's credentials as an async enumerable.</returns>
     public IAsyncEnumerable<UserCredentialModel> GetUserCredentials(long userId)
     {
         return _db
@@ -153,6 +197,13 @@ public class UserService
             .AsAsyncEnumerable();
     }
 
+    /// <summary>
+    /// Deletes a credential from the specified user with the specified Credential Id.
+    /// </summary>
+    /// <param name="userId">The user's Id.</param>
+    /// <param name="credentialId">The Id of the credential to delete.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>True if the credential was deleted, false if not found.</returns>
     public async Task<bool> DeleteUserCredentialAsync(
         long userId,
         long credentialId,
@@ -181,6 +232,15 @@ public class UserService
         return true;
     }
 
+    /// <summary>
+    /// Gets the WebAuthn credential creation options used during the registration ceremony.
+    /// </summary>
+    /// <param name="user">The user participating in this registration ceremony.</param>
+    /// <param name="existingCredentials">
+    /// Any existing credentials for the user to be excluded from re-registration.
+    /// Can be an empty collection.
+    /// </param>
+    /// <returns>The credential creation options.</returns>
     public CredentialCreateOptions GetCredentialCreateOptions(
         UserModel user,
         IEnumerable<byte[]> existingCredentials)
@@ -216,6 +276,14 @@ public class UserService
             exts);
     }
 
+    /// <summary>
+    /// Gets the WebAuthn credential assertion options used during the authentication ceremony.
+    /// </summary>
+    /// <param name="allowedCredentials">
+    /// Credentials allowed for this authentication ceremony. If empty, there will be no restrictions
+    /// on which credential can be used to authenticate.
+    /// </param>
+    /// <returns>The credential assertion options.</returns>
     public AssertionOptions GetCredentialAssertionOptions(
         IEnumerable<byte[]> allowedCredentials)
     {
@@ -234,6 +302,12 @@ public class UserService
             exts);
     }
 
+    /// <summary>
+    /// Generates a credential using the authenticator device's attestation info.
+    /// </summary>
+    /// <param name="attestationResult">The credential data resulting from the completion of the registration ceremony.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The new, raw credential.</returns>
     public async Task<UserCredential> GenerateCredentialAsync(
         AttestationVerificationSuccess attestationResult,
         CancellationToken cancellationToken = default)
@@ -260,6 +334,16 @@ public class UserService
         return credential;
     }
 
+    /// <summary>
+    /// Generates a credential display name using the authenticator device's attestation info.
+    /// </summary>
+    /// <param name="attestationResult">The credential data resulting from the completion of the registration ceremony.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The display name.</returns>
+    /// <remarks>
+    /// By default, the display name is pulled from the FIDO2 metadata service using the authenticator
+    /// device's AAGUID.
+    /// </remarks>
     private async Task<string> GenerateCredentialDisplayNameAsync(
         AttestationVerificationSuccess attestationResult,
         CancellationToken cancellationToken = default)

@@ -140,19 +140,33 @@ public class UsersController : Controller
     /// Get the credential used to authenticate my current login session
     /// </summary>
     /// <returns>The current session's credential</returns>
-    /// <response code="200">Returns the credential</response>
+    /// <response code="404">Could not retrieve the credential associated with the current login session</response>
     [HttpGet("me/credentials/current")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult<UserCredentialModel?>> GetActiveCredentialAsync(
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<UserCredentialModel>> GetActiveCredentialAsync(
         CancellationToken cancellationToken)
     {
-        // should always be a credential id claim for a logged in user
-        var userId = User.Identity!.UserId();
-        var identity = (User.Identity as ClaimsIdentity)!;
-        var credentialIdClaim = identity.FindFirst(WebAuthnClaimConstants.UserCredentialIdClaimType)!;
-        var credentialId = long.Parse(credentialIdClaim.Value, CultureInfo.InvariantCulture);
+        var credentialId = (User.Identity as ClaimsIdentity).GetActiveCredentialId();
 
-        return await _userService.GetUserCredentialAsync(userId, credentialId, cancellationToken);
+        // should never happen
+        if (credentialId == null)
+        {
+            return NotFound();
+        }
+
+        var userId = User.Identity!.UserId();
+        var credential = await _userService.GetUserCredentialAsync(
+            userId,
+            credentialId.Value,
+            cancellationToken);
+
+        if (credential == null)
+        {
+            return NotFound();
+        }
+
+        return credential;
     }
 
     /// <summary>
