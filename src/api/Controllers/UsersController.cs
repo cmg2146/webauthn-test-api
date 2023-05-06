@@ -61,7 +61,6 @@ public class UsersController : Controller
     {
         var newUser = await _userService.CreateUserAsync(
             user,
-            credential: null,
             cancellationToken: cancellationToken);
 
         return CreatedAtAction(

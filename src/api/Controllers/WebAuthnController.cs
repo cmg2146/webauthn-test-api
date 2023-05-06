@@ -40,6 +40,16 @@ public class WebAuthnController : Controller
             : $"{e.Message} ({e.InnerException.Message})";
     }
 
+    private static Fido2User ToFido2User(IUserModelBase user, byte[] userHandle)
+    {
+        return new Fido2User
+        {
+            Id = userHandle,
+            Name = user.DisplayName,
+            DisplayName = $"{user.FirstName} {user.LastName}"
+        };
+    }
+
     /// <summary>
     /// Begin device registration for a new user - retrieve credential creation options
     /// to start WebAuthn registration ceremony
@@ -57,16 +67,9 @@ public class WebAuthnController : Controller
     {
         try
         {
-            var userModel = new UserModel
-            {
-                DisplayName = user.DisplayName,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                UserHandle = UserHandleConvert.NewUserHandle()
-            };
-
+            var fido2User = ToFido2User(user, UserHandleConvert.NewUserHandle());
             var credentialCreationOptions = _userService.GetCredentialCreateOptions(
-                userModel,
+                fido2User,
                 new List<byte[]>());
 
             await HttpContext.Session.SetStringAsync(
@@ -122,7 +125,7 @@ public class WebAuthnController : Controller
         }
 
         var attestationResult = credentialCreateResult.Result!;
-        var credential = await _userService.GenerateCredentialAsync(
+        var credential = await _userService.GenerateCredentialRawAsync(
             attestationResult,
             cancellationToken);
 
@@ -166,6 +169,7 @@ public class WebAuthnController : Controller
 
         try
         {
+            var fido2User = ToFido2User(user, user.UserHandle);
             var existingCredentials = _db
                 .UserCredentials
                 .Where(t => t.UserId == userId)
@@ -173,7 +177,7 @@ public class WebAuthnController : Controller
                 .AsEnumerable();
 
             var credentialCreationOptions = _userService.GetCredentialCreateOptions(
-                user,
+                fido2User,
                 existingCredentials);
 
             await HttpContext.Session.SetStringAsync(
@@ -229,13 +233,7 @@ public class WebAuthnController : Controller
         }
 
         var attestationResult = credentialCreateResult.Result!;
-        var userCredentialToAdd = await _userService.GenerateCredentialAsync(
-            attestationResult,
-            cancellationToken);
-
-        //TODO: Delete existing credential if it has same Id?
-        _db.UserCredentials.Add(userCredentialToAdd);
-        await _db.SaveChangesAsync(cancellationToken);
+        await _userService.SaveCredentialAsync(userId, attestationResult, cancellationToken);
 
         // System.Text.Json cannot serialize these properly. See https://github.com/passwordless-lib/fido2-net-lib/issues/328
         attestationResult.AttestationCertificate = null;

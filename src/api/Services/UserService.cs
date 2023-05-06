@@ -242,7 +242,7 @@ public class UserService
     /// </param>
     /// <returns>The credential creation options.</returns>
     public CredentialCreateOptions GetCredentialCreateOptions(
-        UserModel user,
+        Fido2User user,
         IEnumerable<byte[]> existingCredentials)
     {
         var authenticatorSelection = new AuthenticatorSelection
@@ -261,19 +261,35 @@ public class UserService
             .Select(t => new PublicKeyCredentialDescriptor(t))
             .ToList();
 
-        var fido2User = new Fido2User
-        {
-            Id = user.UserHandle,
-            Name = user.DisplayName,
-            DisplayName = $"{user.FirstName} {user.LastName}"
-        };
-
         return _fido2.RequestNewCredential(
-            fido2User,
+            user,
             existingPublicKeyCredentials,
             authenticatorSelection,
             AttestationConveyancePreference.Direct,
             exts);
+    }
+
+    /// <summary>
+    /// Adds a credential to the user with the specified Id.
+    /// </summary>
+    /// <param name="userId">The user's Id.</param>
+    /// <param name="attestationResult">The credential data resulting from the completion of the registration ceremony.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The added credential.</returns>
+    public async Task<UserCredentialModel> SaveCredentialAsync(
+        long userId,
+        AttestationVerificationSuccess attestationResult,
+        CancellationToken cancellationToken = default)
+    {
+        var credential = await GenerateCredentialRawAsync(attestationResult, cancellationToken);
+        credential.UserId = userId;
+
+        var entry = _db.UserCredentials.Add(credential);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        //TODO: Delete existing credential if it has same raw credential Id?
+
+        return (await GetUserCredentialAsync(userId, entry.Entity.Id, cancellationToken))!;
     }
 
     /// <summary>
@@ -303,12 +319,12 @@ public class UserService
     }
 
     /// <summary>
-    /// Generates a credential using the authenticator device's attestation info.
+    /// Generates a raw credential using the authenticator device's attestation info.
     /// </summary>
     /// <param name="attestationResult">The credential data resulting from the completion of the registration ceremony.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The new, raw credential.</returns>
-    public async Task<UserCredential> GenerateCredentialAsync(
+    public async Task<UserCredential> GenerateCredentialRawAsync(
         AttestationVerificationSuccess attestationResult,
         CancellationToken cancellationToken = default)
     {

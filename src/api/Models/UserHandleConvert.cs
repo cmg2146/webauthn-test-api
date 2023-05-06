@@ -1,4 +1,4 @@
-namespace WebAuthnTest.Database;
+namespace WebAuthnTest.Api;
 
 public static class UserHandleConvert
 {
