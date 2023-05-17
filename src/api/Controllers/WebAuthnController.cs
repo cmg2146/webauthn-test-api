@@ -54,6 +54,8 @@ public class WebAuthnController : Controller
     /// Begin device registration for a new user - retrieve credential creation options
     /// to start WebAuthn registration ceremony
     /// </summary>
+    /// <param name="user">The new user to create</param>
+    /// <param name="cancellationToken"></param>
     /// <returns>The credential creation options</returns>
     /// <response code="200">Returns the options</response>
     /// <response code="500">Problem generating options</response>
@@ -89,8 +91,13 @@ public class WebAuthnController : Controller
     /// Complete device registration for a new user - post authenticator attestation response to complete
     /// WebAuthn registration ceremony
     /// </summary>
-    /// <returns>The new credential info</returns>
-    /// <response code="200">Signs the user in with an authentication cookie</response>
+    /// <param name="attestationResponse">The attestation response from the authenticator.</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns>Signs the user in by issuing an authentication cookie.</returns>
+    /// <response code="200">
+    /// Successful user and device registration.
+    /// Signs the new user in by issuing an authentication cookie.
+    /// </response>
     /// <response code="401">There was an issue validating the authenticator attestation response</response>
     [AllowAnonymous]
     [HttpPost("signup-finish")]
@@ -197,6 +204,8 @@ public class WebAuthnController : Controller
     /// Complete device registration for existing user - post authenticator attestation response to
     /// complete WebAuthn registration ceremony
     /// </summary>
+    /// <param name="attestationResponse">The attestation response from the authenticator.</param>
+    /// <param name="cancellationToken"></param>
     /// <returns>The new credential info</returns>
     /// <response code="200">Returns the new credential info</response>
     /// <response code="401">There was an issue validating the authenticator attestation response</response>
@@ -253,8 +262,7 @@ public class WebAuthnController : Controller
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<AssertionOptions>> GetCredentialRequestOptionsAsync(
-        CancellationToken cancellationToken
-    )
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -277,8 +285,10 @@ public class WebAuthnController : Controller
     /// <summary>
     /// Complete sign in - post authenticator assertion response to complete WebAuthn authentication ceremony
     /// </summary>
-    /// <returns>Signs the user in by issuing an authentication cookie</returns>
-    /// <response code="200">Successful sign in</response>
+    /// <param name="assertionResponse">The assertion response from the authenticator.</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns>Signs the user in by issuing an authentication cookie.</returns>
+    /// <response code="200">Successful sign in. Signs the user in by issuing an authentication cookie.</response>
     /// <response code="401">There was an issue validating the authenticator assertion response</response>
     [AllowAnonymous]
     [HttpPost("authenticate")]

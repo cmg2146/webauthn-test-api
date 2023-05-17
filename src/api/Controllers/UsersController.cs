@@ -1,6 +1,5 @@
 namespace WebAuthnTest.Api;
 
-using System.Globalization;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 
@@ -20,6 +19,8 @@ public class UsersController : Controller
     /// <summary>
     /// Retrieve a user
     /// </summary>
+    /// <param name="userId">The ID of the user to retrieve</param>
+    /// <param name="cancellationToken"></param>
     /// <returns>The user with the specified ID</returns>
     /// <response code="200">Returns the user</response>
     /// <response code="403">If the requestor is forbidden from retrieving the user</response>
@@ -51,6 +52,8 @@ public class UsersController : Controller
     /// <summary>
     /// Create a user
     /// </summary>
+    /// <param name="user">The user to create</param>
+    /// <param name="cancellationToken"></param>
     /// <returns>The newly created user</returns>
     /// <response code="201">Returns the new user</response>
     [HttpPost("")]
@@ -72,6 +75,9 @@ public class UsersController : Controller
     /// <summary>
     /// Update a user
     /// </summary>
+    /// <param name="userId">The ID of the user to update</param>
+    /// <param name="user">The updated user data</param>
+    /// <param name="cancellationToken"></param>
     /// <returns>The updated user</returns>
     /// <response code="200">Returns the user</response>
     /// <response code="403">If the requestor is forbidden from updating the user</response>
@@ -171,6 +177,8 @@ public class UsersController : Controller
     /// <summary>
     /// Delete one of my credentials
     /// </summary>
+    /// <param name="credentialId">The ID of the credential to delete</param>
+    /// <param name="cancellationToken"></param>
     /// <response code="204">The credential was successfully deleted</response>
     /// <response code="404">The credential does not exist</response>
     [HttpDelete("me/credentials/{credentialId}")]
@@ -181,6 +189,9 @@ public class UsersController : Controller
         CancellationToken cancellationToken)
     {
         var userId = User.Identity!.UserId();
+
+        // TODO: Prevent deleting the user's last credential
+
         var deleted = await _userService.DeleteUserCredentialAsync(userId, credentialId, cancellationToken);
 
         if (!deleted)

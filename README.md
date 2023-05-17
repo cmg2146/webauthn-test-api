@@ -15,6 +15,8 @@ In development, the API can be run using Docker Linux containers by executing th
 
 ```docker-compose up```
 
+The API docs can be found at http://localhost:10001/swagger.
+
 In production, an Azure DevOps pipeline (azure-pipelines.yml) automatically runs when changes are made to the main branch.
 The pipeline requires the following variables to be configured to properly deploy the updated code:
 
