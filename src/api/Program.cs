@@ -256,9 +256,9 @@ public class Program
                 .GetRequiredService<WebAuthnTestDbContext>()
                 .Database;
 
-            // try to connect to the database at most 10 times, increasing the retry time on
-            // each attempt by 1 second
-            var maxAttempts = 10;
+            // try to connect to the database at most 5 times, increasing the retry time on
+            // each attempt by 1 second for a total timeout of 10 seconds
+            var maxAttempts = 5;
             for (var attempt = 0; attempt < maxAttempts; attempt++)
             {
                 Thread.Sleep(attempt * 1000);
@@ -277,7 +277,18 @@ public class Program
     {
         Console.WriteLine("Migrating Database...");
 
-        WaitForDatabase(app);
+        try
+        {
+            WaitForDatabase(app);
+        }
+        catch
+        {
+            // if we cant connect to the database, it's possible it doesnt exist yet, so log a
+            // warning and try the migration anyway.
+            app.Logger.LogWarning(
+                "Could not connect to database. It is possible the database does not exist yet."
+            );
+        }
 
         using (var serviceScope = app.Services.CreateScope())
         {
