@@ -1,5 +1,6 @@
 namespace WebAuthnTest.Api;
 
+using System.Data;
 using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using Fido2NetLib;
@@ -154,6 +155,16 @@ public class UserService
         };
     }
 
+    public async Task<bool> DoesCredentialExistAsync(
+        long userId,
+        long credentialId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _db
+            .UserCredentials
+            .AnyAsync(t => t.UserId == userId && t.Id == credentialId, cancellationToken);
+    }
+
     /// <summary>
     /// Gets raw credential information with the specified, raw Credential Id, belonging to the user with
     /// the specified user handle. The raw credential includes the public key and other low-level information.
@@ -203,7 +214,7 @@ public class UserService
     /// <param name="userId">The user's Id.</param>
     /// <param name="credentialId">The Id of the credential to delete.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>True if the credential was deleted, false if not found.</returns>
+    /// <returns>True if the credential was deleted or False if the credential could not be deleted or was not found.</returns>
     public async Task<bool> DeleteUserCredentialAsync(
         long userId,
         long credentialId,
@@ -226,10 +237,33 @@ public class UserService
             return false;
         }
 
+        // Read Committed isolation level is used to ensure always one credential remains in the database.
+        // Read Committed is the default isolation level on SQL Server (and Postgres). For SQL Server,
+        // we also need Read Committed Snapshot to be off.
+        // https://learn.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql?view=sql-server-ver16#read-committed
+        await using var transaction = await _db.Database.BeginTransactionAsync(
+            IsolationLevel.ReadCommitted,
+            cancellationToken
+        );
+
+        // Now remove the credential in the context of this transaction
         _db.UserCredentials.Remove(credential);
         await _db.SaveChangesAsync(cancellationToken);
 
-        return true;
+        // roll back the transaction if this deletion would result in the last credential being removed
+        var hasRemainingCredentials = await _db
+            .UserCredentials
+            .AnyAsync(t => t.UserId == userId, cancellationToken);
+        if (hasRemainingCredentials)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return true;
+        }
+        else
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return false;
+        }
     }
 
     /// <summary>

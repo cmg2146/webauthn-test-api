@@ -190,13 +190,18 @@ public class UsersController : Controller
     {
         var userId = User.Identity!.UserId();
 
-        // TODO: Prevent deleting the user's last credential
-
-        var deleted = await _userService.DeleteUserCredentialAsync(userId, credentialId, cancellationToken);
-
-        if (!deleted)
+        var credentialFound = await _userService.DoesCredentialExistAsync(
+            userId, credentialId, cancellationToken
+        );
+        if (!credentialFound)
         {
             return NotFound();
+        }
+
+        var deleted = await _userService.DeleteUserCredentialAsync(userId, credentialId, cancellationToken);
+        if (!deleted)
+        {
+            return Conflict();
         }
 
         return NoContent();
